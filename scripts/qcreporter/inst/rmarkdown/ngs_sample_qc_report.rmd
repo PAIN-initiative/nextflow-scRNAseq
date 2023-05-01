@@ -1,0 +1,335 @@
+---
+title: "Brigham and Women's Bioinformatics and Genomics Hub NGS Sequencing Sample Summary: `r {params$experiment_id}`"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  html_document:
+    code_folding: hide
+    df_print: paged
+    self_contained: no
+  tables: yes
+params:
+  experiment_id: NULL
+  cellrangers_dir: NULL            
+  scrubletdir: NULL    
+  outdir: NULL
+  refdir: null           
+  projectName: NULL     
+  in_method_string: NULL
+  in_dir: NULL           
+  in_key: NULL           
+  out_dir: NULL
+  nUMI: NULL 
+  nFeature_RNA: NULL
+  percent_mito: NULL
+  resolution: NULL
+  ngs_report_version: 1.0.0
+---  
+
+# {.tabset}  
+
+## Sample Summary {.active} 
+<!-- create details section to collapse multiple no-output code blocks to save space -->
+<details style="color: lightgray;"> 
+  <summary>Expand Code</summary> 
+  
+```{r setup, include = TRUE}
+# Load Libraries
+start_time_all <- Sys.time()
+
+options(warn = 1)  # output warnings as they appear for traceability in stdout/stderr record
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE) # warnings will go to console
+
+quiet_library <- function(...) {
+  suppressPackageStartupMessages(library(...))
+}
+quiet_library(qcreporter)        # dependency of H5MANIPULATOR
+quiet_library(Matrix)        # dependency of H5MANIPULATOR
+quiet_library(rhdf5)         # dependency of H5MANIPULATOR
+quiet_library(H5MANIPULATOR)    
+quiet_library(ggplot2)
+quiet_library(stringr)       
+quiet_library(dplyr)         # data wrangling
+quiet_library(cowplot)       # arranging multiple plots
+quiet_library(gt)            # formatted table output
+quiet_library(plotly)        # interactive plots
+quiet_library(tidyr)         # data wrangling
+quiet_library(Seurat)        # batch umap creation
+quiet_library(future)        # multi-threading for batch umap creation
+quiet_library(future.apply)  # multi-threading for batch umap creation
+quiet_library(rio)
+quiet_library(purrr)
+quiet_library(scCustomize)
+quiet_library(egg)
+quiet_library(DT)
+quiet_library(SoupX)
+quiet_library(reticulate)
+quiet_library(glmpca)
+quiet_library(SeuratWrappers)
+quiet_library(FlexDotPlot)
+quiet_library(viridis)
+quiet_library(qs)
+quiet_library(gridExtra)
+quiet_library(plyr)
+quiet_library(circlize)
+quiet_library(ComplexHeatmap)
+quiet_library(EnhancedVolcano)
+quiet_library(naniar)
+quiet_library(ggpubr)
+quiet_library(XML)
+quiet_library(RCurl)
+  
+stm("Starting NGS Sample Report")
+
+stm(paste(c("\t",paste(names(Sys.info()),Sys.info(),sep = ": ")), collapse = "\n\t"))  
+```
+
+Argument Parsing  
+```{r parse_arguments}
+# give input directory rna-specific name 
+if(is.null(params$in_dir)) {
+  experiment_id <- "X070"
+  in_dir <- system.file("extdata/X070", package = "qcreporter")
+  in_key <- system.file("extdata/example_sample_key_X070.csv", package = "qcreporter")
+  in_method_string <- "scrna;scatac"
+  out_dir <- tempdir()
+} else {
+  experiment_id    <- params$experiment_id
+  cellrangers_dir  <- params$cellrangers_dir
+  scrubletdir      <- params$scrubletdir
+  outdir           <- params$out_dir
+  refdir           <- params$refdir
+  projectName      <- params$experiment_id  
+  in_method_string <- params$in_method
+  in_dir           <- params$in_dir  
+  in_key           <- params$in_key  
+  out_dir          <- params$out_dir
+  nUMI             <- params$nUMI
+  nFeature_RNA     <- params$nFeature_RNA
+  percent_mito     <- params$percent_mito
+  resolution       <- params$resolution
+}
+
+stm(paste0("IN Experiment        : ", experiment_id))
+stm(paste0("IN Method       : ", in_method_string))
+stm(paste0("IN Directory    : ", in_dir))
+stm(paste0("IN Sample Key   : ", in_key))
+stm(paste0("OUT Dir         : ", out_dir))
+
+print(paste0("IN Experiment        : ", experiment_id))
+print(paste0("IN Method       : ", in_method_string))
+print(paste0("IN Directory    : ", in_dir))
+print(paste0("IN Sample Key   : ", in_key))
+print(paste0("OUT Dir         : ", out_dir))
+```  
+
+Check input files  
+```{r check_input_main}
+if(!dir.exists(in_dir)) {
+  stm(paste("ERROR: Cannot find IN results dir:", in_dir))
+  stop()
+}
+if(!file.exists(in_key)) {
+  stm(paste("ERROR: Cannot find IN sample key:", in_key))
+  stop()
+}
+if(!dir.exists(out_dir)) {
+  stm(paste("Creating output directory:", out_dir))
+  dir.create(out_dir)
+}
+
+out_prefix <- file.path(out_dir, paste0(experiment_id, "_"))
+
+```
+Read in the sample key  
+```{r read_key}
+stm("Reading in sample key")
+if (length(grep("https",in_key)) > 0) {
+    ss <- read_sheet(in_key)
+    } else if (length(grep(".xlsx",in_key)) > 0){
+        ss <- import_list(in_key)
+        ss <- ss$MetaTable_expectedCell
+    } else {
+        ss <- read.csv(in_key)
+}
+if ("Final list" %in% colnames(ss)) {
+    ss <- ss %>% filter(ss$"Final list" == 1)
+}
+
+df_key <- ss
+has_controls <- any(grepl("Control", df_key$Treatment))  # used to control evaluation of batch control-related code chunks
+```
+
+
+Determine which modalities streams were run  
+```{r determine_modalities}
+defined_modalities <- c("scrna", "scatac")
+
+# convert method string to vector
+in_method <- strsplit(in_method_string, split = ";")[[1]]
+in_method <- tolower(in_method)
+
+# Logic check input methods
+if(!all(in_method %in% defined_modalities)){
+    unknowns <- setdiff(in_method, defined_modalities)
+    stop(sprintf("One or more input methods are not in defined modalities: '%s'. Defined modalities are: [%s]. Input methods should be passed as a ';'-delimited string, ie 'scrna;scatac;hto'.",
+                    paste(unknowns, collapse = "', '"),
+                    paste(defined_modalities, collapse = ', ')))
+} 
+
+has_rna <- "scrna" %in% in_method
+has_atac <- "scatac" %in% in_method
+
+```  
+
+Define and check input folder expectations  
+```{r define_input_folders}
+#if(has_rna){
+#  in_rna <- file.path(in_dir, "scrna")
+#  if(!dir.exists(in_rna)){
+#    stop(sprintf("Expected RNA input directory [%s] does not exist.", in_rna))
+#  }
+#}
+
+if(has_rna){
+  in_rna <- file.path(in_dir)
+  if(!dir.exists(in_rna)){
+    stop(sprintf("Expected RNA input directory [%s] does not exist.", in_rna))
+  }
+}
+
+#if(has_atac){
+#  in_atac <- file.path(in_dir, "scatac")
+#  if(!dir.exists(in_atac)){
+#    stop(sprintf("Expected ATAC input directory [%s] does not exist.", in_atac))
+#  }
+#}
+
+if(has_atac){
+  in_atac <- file.path(in_dir)
+  if(!dir.exists(in_atac)){
+    stop(sprintf("Expected ATAC input directory [%s] does not exist.", in_atac))
+  }
+}
+
+```
+
+</details> 
+
+### Sample Information    
+```{r sampleinfo, include = TRUE}
+stm("Constructing Sample Information table")
+
+all_h5 <- list.files(path = file.path(in_rna), 
+                             pattern = "h5$", 
+                             full.names = TRUE, 
+                             recursive = TRUE)
+
+meta_list <- future_lapply(all_h5, read_h5_cell_meta)
+# Create metadata table that contains only singlet cells
+meta <- dplyr::bind_rows(meta_list)
+setDT(meta)
+
+
+h5_filenames <- list.files(path = file.path(in_rna),
+                                            pattern = ".h5$", 
+                                            full.names = FALSE, 
+                                            recursive = TRUE)
+
+sample_library <- sub('\\.h5$', '', h5_filenames)
+
+# Summarize batch information, also declare some global batch variables that are used throughout the report
+libraries   <- unique(df_key$Library)
+n_libraries <- length(libraries)
+
+samples <- unique(df_key$Sample)
+n_samples <- length(samples)
+
+controls <- unique(df_key$Sample[df_key$Treatment == "Control"])
+n_controls <- length(controls)
+control_string <- ifelse(has_controls, paste(controls, collapse = ", "), "None")
+
+study_samples <- unique(df_key$Sample[df_key$Treatment != "Control"])
+n_study_samples <- length(study_samples)
+
+samples_library_string <- sample_library
+labels <- c("Experiment", "N Samples", "N Controls","Control", paste0(unique(meta$in_sample), " Samples"))
+values <-  c(experiment_id, n_study_samples, n_controls, control_string, samples_library_string)
+
+simple_html_table(labels, values, fontsize = 3, col_widths_px = c(175, 850))
+
+```  
+
+```{r scrna_tab, results = "asis", eval = has_rna, echo = FALSE}
+cat("## scRNA Sample", sep = "\n")
+
+```  
+```{r, child =  system.file("rmarkdown/qc_sample_summary_rna_seq_module.rmd", package = "qcreporter"), eval = has_rna}
+```
+```{r scrna_marker_gene_tab, results = "asis", eval = has_rna, echo = FALSE}
+cat("## scRNA Marker Genes", sep = "\n")
+
+```            
+```{r, child =  system.file("rmarkdown/marker_genes_modules.rmd", package = "qcreporter"), eval = has_rna}
+```
+
+## Session Information   
+
+<a id="top_session_info"></a>  
+
+Input Directory:  
+
+```{r echo_in_dir}
+in_dir 
+
+```  
+Input Directory Contents:  
+
+```{r echo_in_files}
+folders <- list.dirs(in_dir, recursive = FALSE)
+
+file_list <- lapply(folders, function(x){
+  dir(x, recursive = TRUE)
+})
+names(file_list) <- basename(folders)
+file_list
+
+```  
+
+
+Key File:  
+```{r echo_key_files}
+in_key
+
+```  
+
+Output Directory:  
+```{r echo_out_dir}
+out_dir
+
+``` 
+
+Session Info:  
+```{r session_info_main}
+sessionInfo()
+```
+
+Total time elapsed
+```{r show_time_main}
+end_time_all <- Sys.time()
+diff_time_all <- end_time_all - start_time_all
+time_message_all <- paste0("Elapsed Time: ", 
+                       round(diff_time_all, 3),
+                       " ", units(diff_time_all))
+print(time_message_all)
+stm(time_message_all)
+stm("Sample report process complete.")
+```  
+
+[Return to Top](#top_session_info)
+
+# {-}
+
+---  
+
+NGS report v.`r {params$ngs_report_version}`, Brigham and Women's Bioinformatics and Genomics Hub

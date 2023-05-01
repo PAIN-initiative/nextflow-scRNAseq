@@ -1,0 +1,3 @@
+Extract SampleID from .csv instead of from nextflow.config
+Add to ReadME how to construct samplesheet.csv
+change in_key parameter to a more intuitative name.

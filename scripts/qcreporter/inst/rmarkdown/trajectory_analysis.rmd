@@ -1,0 +1,99 @@
+<!-- # Child Rmarkdown Document for Cluster Annotation -->
+<!-- Parent document must have a variable "in_rna" containing metadata-injected H5 files by sample --> 
+<a id="scrna_trajectory_analysis_top"></a>
+
+```{r, include=FALSE} 
+orig_workspace <- ls()
+
+scrna_seq_sample_module_version <- "1.0.2" # 20211201
+stm("Starting scRNA Trajectory Analysis Module")
+
+
+```
+Learn trajectory graph 
+### Contents 
+#### [Trajectory Analysis](#trajectory)
+  - [Before Trajectory Analysis](#before_trajectory)
+  - [Learn Trajectory Graph](#learn_trajectory)
+<details style="color: lightgray;">  
+  <summary>Expand Code</summary> 
+
+```{r convert_Seurat_2_CDS}
+# rename Features
+#metadata <- scrna.combined@meta.data
+#clusters <- DimPlot(scrna.combined,reduction = 'umap',group.by = 'seurat_clusters',label=T)
+#labeled_cell_types <- DimPlot(scrna.combined,reduction = 'umap',group.by = 'celltype',label=T)
+#clusters|labeled_cell_types
+#table(metadata$orig.ident)
+scrna.combined <- readRDS(paste0(outdir, "scrna.combined.seurat.", projectName, ".rds"))
+# ...1 Convert to cell_data_set object ------------------------
+cds <- as.cell_data_set(scrna.combined)
+# since it misses the gene_short_name column, let's add it
+fData(cds)$gene_short_name <- rownames(fData(cds))
+# ...2. Cluster cells (using clustering info from seurat's UMAP)---------------------------
+# let's use the clustering information have
+reacreate.partition<-c(rep(1,length(cds@colData@rownames)))
+names(reacreate.partition)<-cds@colData@rownames
+reacreate.partition<-as.factor(reacreate.partition)
+
+cds@clusters$UMAP$partitions<-reacreate.partition
+# Assign the cluster info 
+
+list_cluster <- scrna.combined@active.ident # store cell assigned to which cluster into a list
+cds@clusters$UMAP$clusters <- list_cluster  # assign it into cluster slot of cell data set object
+cds@int_colData@listData$reducedDims$UMAP <- scrna.combined@reductions$umap@cell.embeddings # change the cds UMAP to the UMAP embeddings from the Seurat Object 
+```
+
+<a  id="before_trajectory"></a> 
+
+```{r before_learn_graph}
+
+# plot
+
+cluster.before.trajectory <- plot_cells(cds,
+           color_cells_by = 'cluster',
+           label_groups_by_cluster = FALSE,
+           group_label_size = 5) +
+  theme(legend.position = "right")    # Generate plot and visualize cells
+
+library(RColorBrewer)
+n <- length(unique(cds$seurat_clusters))
+qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
+col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
+#pie(rep(1,n), col=sample(col_vector, n))
+
+
+cluster.names <- plot_cells(cds,
+           color_cells_by = "seurat_clusters",
+           label_groups_by_cluster = FALSE,
+           group_label_size = 5) +
+  scale_color_manual(values = col_vector) +
+  theme(legend.position = "right") 
+cluster.before.trajectory | cluster.names
+```
+
+<a  id="learn_trajectory"></a> 
+
+```{r learn_trajectory_graph}
+cds <- learn_graph(cds, use_partition = TRUE)
+
+plot_cells(cds,
+           color_cells_by = 'cluster',
+           label_groups_by_cluster = FALSE,
+           label_branch_points = FALSE,
+           label_roots = FALSE,
+           label_leaves = FALSE,
+           group_label_size = 5)
+```
+
+[Return to Contents](#rna_seq_sample_top) 
+ 
+---  
+
+scRNA seq report sample module v.`r {scrna_seq_sample_module_version}`, Brigham and Women's Bioinformatics and Genomics Hub  
+
+```{r scrna_trajectory_cleanup, include = FALSE}
+module_vars <- setdiff(ls(), orig_workspace)
+rm(list=module_vars)
+gc()
+```

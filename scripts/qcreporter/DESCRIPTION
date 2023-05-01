@@ -1,0 +1,41 @@
+Package: qcreporter
+Title: Sample QC Summary Reports for Pipeline Data
+Version: 1.1.6
+Authors@R: 
+    person(given = "Anthony",
+           family = "Cicalo",
+           role = c("aut", "cre"),
+           email = "anthony.cicalo1@outlook.com",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Rmarkdown reports, wrapper scripts, and supporting functions for 
+  summarizing and performing QC on data.
+License: NA
+Encoding: UTF-8
+Depends:
+  R (>= 3.5.0)
+Imports:
+  assertthat,
+  stats,
+  data.table,
+  dplyr,
+  ggplot2,
+  gt,
+  plotly,
+  htmltools,
+  knitr,
+  scales,
+  H5MANIPULATOR (>= 1.0.20),
+  viridis,
+  parallel,
+  rhdf5,
+  jsonlite,
+  Matrix,
+  magrittr,
+  rlang,
+  Seurat,
+  ggrepel
+Suggests: 
+  testthat
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1

@@ -61,8 +61,8 @@ process cellranger_count {
                    --transcriptome=${ref} \
                    --fastqs=${params.fastq_path}/$sample_id \
                    --sample=$sample_id \
-                   --localcores=30 \
-                   --localmem=64
+                   --localcores=${params.cores} \
+                   --localmem=${parmas.mem}
   """
 
 }

@@ -78,7 +78,7 @@ sample_id
 P1708_SP093_105
 ```
 How to run:
-```
+
 cellrangers.nf \ 
 
 parameters to set in nextflow.config are: \
@@ -97,4 +97,4 @@ Sample2
 SampleN
 ```
 outdir                   = ${baseDir}/results/
-```
+

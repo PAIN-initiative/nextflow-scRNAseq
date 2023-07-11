@@ -6,7 +6,7 @@ Nextflow for single-cell RNAseq
 # 1. Introduction
 
 ### Overview:
-Note: This pipeline is designed to be run post running CellRanger Count. If the data meets basic QC from the CellRanger Websummary this pipeline will QC further and as well as run Seurat Preprocessing and Clustering.
+Note: This pipeline is designed to be run post running CellRanger Count (CellRangers.nf). If the data meets basic QC from the CellRanger Websummary this pipeline will QC further and as well as run Seurat Preprocessing and Clustering.
 
 This pipeline manages a scRNA-Seq workflow starting from raw fastq files and converting
 them to standard file formats for use by downstream tools. The steps involved are:

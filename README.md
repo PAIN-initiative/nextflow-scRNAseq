@@ -81,7 +81,8 @@ How to run:
 ```
 cellrangers.nf 
 
-parameters to set in nextflow.config are: 
+parameters to set in nextflow.config are:
+
 cellranger_software_path = "Path/to/CellRangers/Software/ 
 genomedir                = "Path/to/reference/genome/ (e.g. hg38 or mm10) 
 fastq_path               = "Path/to/fastq/files

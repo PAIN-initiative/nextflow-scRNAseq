@@ -20,7 +20,6 @@ Channel
 (sample_id) = sample_id_ch.into(1)
 
 
-// Replace this with the path to a directory containing raw fastq files
 
 /*
 Channel

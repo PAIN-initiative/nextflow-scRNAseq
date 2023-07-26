@@ -59,9 +59,9 @@ devtools::install_github("bwh-bioinformatics-hub/qcreporter")
 git clone https://github.com/bwh-bioinformatics-hub/rna_seq_pipeline_bwh.git
 ```
 Github pages of dependencies developed internally: \
-scRNA_seq Pipeline: https://github.com/bwh-bioinformatics-hub/rna_seq_pipeline_bwh \
-H5MANIPULATOR: https://github.com/bwh-bioinformatics-hub/H5MANIPULATOR \
-qcreporter: https://github.com/bwh-bioinformatics-hub/qcreporter 
+scRNA_seq Pipeline: https://github.com/PAIN-initiative/rna_seq_pipeline_bwh \
+H5MANIPULATOR: https://github.com/PAIN-initiative/H5MANIPULATOR \
+qcreporter: https://github.com/PAIN-initiative/qcreporter 
 
 To create conda environment with dependencies install
 ```

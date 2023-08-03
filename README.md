@@ -110,5 +110,5 @@ docker pull acicalo4/scsnrnaseq:latest
 
 To mount data from local host to docker container run
 ```
-sudo docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/scsnrnaseq /bin/bash
+docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/scsnrnaseq /bin/bash
 ```

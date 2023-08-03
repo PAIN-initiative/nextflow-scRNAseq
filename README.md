@@ -100,3 +100,15 @@ SampleN
 
 outdir                   = ${baseDir}/results/
 ```
+# 2. Containerization 
+
+To deal with software dependencies and version controling a dockerfile has been created. \
+To download docker image run 
+```
+docker pull acicalo4/scsnrnaseq:latest
+```
+
+To mount data from local host to docker container run
+```
+sudo docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/scsnrnaseq /bin/bash
+```

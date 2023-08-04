@@ -108,7 +108,7 @@ To download docker image run
 docker pull acicalo4/scsnrnaseq:latest
 ```
 
-To mount data from local host to docker container run
+To mount data from local host to docker container run, example:
 ```
 docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/scsnrnaseq /bin/bash
 ```

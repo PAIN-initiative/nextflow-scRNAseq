@@ -18,6 +18,7 @@ them to standard file formats for use by downstream tools. The steps involved ar
 * Perform Trajectory Analysis.
 <a id="dependencies"></a>
 
+# 2. Installation
 ## Dependencies    
 This repository uses CellRanger Counts to generate the CellRangers outs directory that is used downstream: You can download it here:
 CellRanger: https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/latest
@@ -67,6 +68,7 @@ To create conda environment with dependencies install
 ```
 conda env create -f environment.yml 
 ```
+# 3. Example Usage
 Setup:
 
 Nextflow will parse a .csv file for the sample_ids and the path to the directory the fastq files are in for your project. Please provide at the minimum a sample_id column to the .csv file. \
@@ -100,7 +102,7 @@ SampleN
 
 outdir                   = ${baseDir}/results/
 ```
-# 2. Containerization 
+# 4. Containerization 
 
 To deal with software dependencies and version controling a dockerfile has been created. \
 To download docker image run 

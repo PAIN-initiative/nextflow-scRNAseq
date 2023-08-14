@@ -49,7 +49,7 @@ RUN Rscript -e "install.packages(c('BiocManager', 'devtools','FactoMineR', 'ggfo
     && rm -rf /tmp/downloaded_packages/ /tmp/*.rds
 RUN Rscript -e "install.packages('Seurat',repos='http://cran.us.r-project.org')"
 RUN Rscript -e "install.packages('devtools',repos='http://cran.us.r-project.org')"
-RUN Rscript -e "remotes::install_github('bwh-bioinformatics-hub/H5MANIPULATOR');remotes::install_github('satijalab/seurat-wrappers')"
-RUN Rscript -e "remotes::install_github('bwh-bioinformatics-hub/qcreporter')"
-RUN git clone https://github.com/bwh-bioinformatics-hub/nextflow-scRNAseq.git
+RUN Rscript -e "remotes::install_github('PAIN-initiative/H5MANIPULATOR');remotes::install_github('satijalab/seurat-wrappers')"
+RUN Rscript -e "remotes::install_github('PAIN-initiative/qcreporter')"
+RUN git clone https://github.com/PAIN-initiative/nextflow-scRNAseq.git
 RUN wget -qO- https://get.nextflow.io | bash

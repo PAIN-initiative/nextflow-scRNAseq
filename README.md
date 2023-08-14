@@ -107,10 +107,10 @@ outdir                   = ${baseDir}/results/
 To deal with software dependencies and version controling a dockerfile has been created. \
 To download docker image run 
 ```
-docker pull acicalo4/scsnrnaseq:latest
+docker pull acicalo4/snscrnaseq:latest
 ```
 
 To mount data from local host to docker container run, example:
 ```
-docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/scsnrnaseq /bin/bash
+docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/snscrnaseq /bin/bash
 ```

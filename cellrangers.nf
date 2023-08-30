@@ -61,7 +61,7 @@ process cellranger_count {
                    --fastqs=${params.fastq_path}/$sample_id \
                    --sample=$sample_id \
                    --localcores=${params.cores} \
-                   --localmem=${parmas.mem}
+                   --localmem=${params.mem}
   """
 
 }

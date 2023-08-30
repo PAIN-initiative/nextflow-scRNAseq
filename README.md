@@ -114,6 +114,7 @@ To mount data from local host to docker container run, example:
 ```
 docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/snscrnaseq /bin/bash
 ```
+
 # 5. To Run After Pulling Docker Image
 ```
 nextflow run scrna_seq.nf -with-docker acicalo4/snscrnaseq

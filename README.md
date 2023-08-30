@@ -50,7 +50,8 @@ BiocManager::install("ComplexHeatmap")
 BiocManager::install("rhdf5")
 
 ```
-To download dependencies that were developed internally by BWH Bioinformatics and Genomics Hub
+To download dependencies that were developed internally by BWH Bioinformatics and Genomics Hub 
+Note: It is much easier to pull the docker image.
 
 ```
 Sys.setenv(GITHUB_PAT = "[your_PAT_here]")
@@ -68,41 +69,8 @@ To create conda environment with dependencies install
 ```
 conda env create -f environment.yml 
 ```
-# 3. Example Usage
-Setup:
 
-Nextflow will parse a .csv file for the sample_ids and the path to the directory the fastq files are in for your project. Please provide at the minimum a sample_id column to the .csv file. \
-If working with a .xls/.xlsx file please create a .csv file called samples.csv with a column labeled == 'sample_id' \
-example: \
-
-```
-sample_id
-P1708_SP093_105
-```
-How to run:
-```
-cellrangers.nf 
-
-parameters to set in nextflow.config are:
-
-cellranger_software_path = "Path/to/CellRangers/Software/ 
-genomedir                = "Path/to/reference/genome/ (e.g. hg38 or mm10) 
-fastq_path               = "Path/to/fastq/files
-samples_csv              = csv file containing sample id names
-
-Basic layout for samples.csv:
-
-sample_id
-Sample1
-Sample2
-.
-.
-.
-SampleN
-
-outdir                   = ${baseDir}/results/
-```
-# 4. Containerization 
+# 3. Containerization 
 
 To deal with software dependencies and version controling a dockerfile has been created. \
 To download docker image run 
@@ -115,6 +83,16 @@ To mount data from local host to docker container run, example:
 docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/snscrnaseq /bin/bash
 ```
 
-# 5. To Run After Pulling Docker Image
+# 4. Example Usage: To Run After Pulling Docker Image
+Setup:
+
+Nextflow will parse a .csv file for the sample_ids and the path to the directory the fastq files are in for your project. Please provide at the minimum a sample_id column to the .csv file. \
+If working with a .xls/.xlsx file please create a .csv file called samples.csv with a column labeled == 'sample_id' \
+example: \
+
+```
+sample_id
+P1708_SP093_105
+```
 ```
 nextflow run scrna_seq.nf -with-docker acicalo4/snscrnaseq

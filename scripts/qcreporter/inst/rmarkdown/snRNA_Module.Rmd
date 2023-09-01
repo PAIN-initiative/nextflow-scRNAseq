@@ -1,0 +1,458 @@
+<!-- # Child Rmarkdown Document for Cluster Annotation -->
+<!-- Parent document must have a variable "in_rna" containing metadata-injected H5 files by sample --> 
+<a id="snrna_seq_cluster_annotation_top"></a>
+
+```{r, include=FALSE} 
+orig_workspace <- ls()
+
+snrna_seq_sample_module_version <- "1.0.0" # 
+stm("Starting snRNA Cluster Annotation Module")
+```
+
+
+### Contents 
+#### [QC Seurat Object](#seurat_qc)
+  - [Principal Component Plot (Elbow Plot)](#elbow_plot)
+  - [UMAP-Treatments](#UMAP)
+  - [Marker Gene Table](#mgt) 
+  - [UMAP with Cell Annotations](#cell_type_annotation)
+<details style="color: lightgray;">  
+  <summary>Expand Code</summary> 
+
+```{r echo=FALSE,message=FALSE}
+stm("Reading in Marker Genes")
+
+if (length(grep("https",in_key)) > 0) {
+    ss <- read_sheet(in_key)
+    } else if (length(grep(".xlsx",in_key)) > 0 ){
+        ss <- import_list(in_key)
+    } else {
+        ss <- read.csv(in_key)
+}
+
+metatable <- ss$MetaTable_expectedCell
+if ("Final list" %in% colnames(metatable)) {
+    metatable <- metatable %>% filter(metatable$"Final list" == 1)
+}
+samples <- unique(metatable$Sample)
+treatments <- metatable$Treatment      
+              
+# Format Marker Genes
+MarkerGenes <- ss$MarkerGenes
+colnames(MarkerGenes) <- c('marker_gene','cell_type','ref')
+markers <- MarkerGenes$'marker_gene'
+```
+
+```{r pre_processing,echo=FALSE,message=FALSE}
+# Step 2: Pre-processing
+# Remove ambient RNA by SoupX
+data.10x = list()
+for (sample in samples){
+  filt.matrix <- Read10X_h5(paste0(cellrangers_dir, sample, "/outs/filtered_feature_bc_matrix.h5"), use.names = T)
+  raw.matrix <- Read10X_h5(paste0(cellrangers_dir, sample, "/outs/raw_feature_bc_matrix.h5"), use.names = T)
+  srat <- CreateSeuratObject(counts = filt.matrix)
+  soup.channel <- SoupChannel(raw.matrix, filt.matrix)
+  srat <- SCTransform(srat, verbose = F)
+  srat <- RunPCA(srat, verbose = F)
+  srat <- RunUMAP(srat, dims = 1:30, verbose = F)
+  srat <- FindNeighbors(srat, dims = 1:30, verbose = F)
+  srat <- FindClusters(srat, verbose = T)
+  meta <- srat@meta.data
+  umap <- srat@reductions$umap@cell.embeddings
+  soup.channel <- setClusters(soup.channel, setNames(meta$seurat_clusters, rownames(meta)))
+  soup.channel <- setDR(soup.channel, umap)
+  soup.channel <- autoEstCont(soup.channel)
+  data.10x[[sample]] <- adjustCounts(soup.channel, roundToInt = T)
+}
+
+# Create Seurat object after SoupX
+scrna.list = list()
+for (sample in samples) {
+    scrna.list[[sample]] = CreateSeuratObject(counts = data.10x[[sample]], min.cells=3, project=sample)
+}
+
+# Remove raw data to save memory
+rm(data.10x)
+                        
+# add treatment
+for(i in 1:length(samples)){
+  sample=samples[i]; treatment=treatments[i];
+  scrna.list[[sample]]$treatment <- treatment
+}
+
+# add sample name
+for(i in 1:length(samples)){
+  sample=samples[i]; sample_id=samples[i];
+  scrna.list[[sample]]$sample_id <- sample_id
+}
+```
+
+[Return to Contents](#snrna_seq_sample_top) 
+
+```{r echo=FALSE,message=FALSE}
+# Add percent.mt and percent.rb to cell level metadata
+for (sample in samples) {
+  scrna.list[[sample]][["percent.mito"]] <- PercentageFeatureSet(scrna.list[[sample]], pattern = "^MT:|MT-|mt:|mt-") 
+  scrna.list[[sample]][["percent.ribo"]] <- PercentageFeatureSet(scrna.list[[sample]], pattern = "^RP[LS]|Rp[LS]")
+}
+# merge list of prefiltered Seurat
+scrna.combined_prefilter <- Merge_Seurat_List(scrna.list,
+                                              add.cell.ids = NULL,
+                                              merge.data = TRUE,
+                                              project = "sample_id")
+# metadata variable
+metadata_prefilter <- scrna.combined_prefilter@meta.data
+# Save Prefilter
+saveRDS(scrna.combined_prefilter, paste0(out_dir, "scrna.combined_prefilter.seurat.", projectName, ".rds"))
+                   
+# Detection based filtering
+# 300 detected genes and the genes need to be expressesd in atleast 3 cells.
+selected_c <- WhichCells(scrna.combined_prefilter, expression = nFeature_RNA > 300)
+selected_f <- rownames(scrna.combined_prefilter)[Matrix::rowSums(scrna.combined_prefilter) > 3]
+# Apply the filter
+data.filt <- subset(scrna.combined_prefilter, features = selected_f, cells = selected_c)
+# Mito Filter
+selected_mito <- WhichCells(data.filt, expression = percent.mito == 0)
+data.filt <- subset(data.filt, cells = selected_mito)
+dim(data.filt)
+table(data.filt$orig.ident)
+
+# Split Seurat Object
+scrna.list <- SplitObject(data.filt, split.by = "sample_id")
+  
+# Compute the relative expression of each gene per cell Use sparse matrix
+# operations, if your dataset is large, doing matrix devisions the regular way
+# will take a very long time.
+C = list()
+most_expressed = list()
+par(mar = c(4, 8, 2, 1))
+for (sample in samples){
+C[[sample]] <- scrna.list[[sample]]@assays$RNA@counts
+C[[sample]] <- Matrix::t(Matrix::t(C[[sample]])/Matrix::colSums(C[[sample]])) * 100
+most_expressed[[sample]] <- order(apply(C[[sample]], 1, median), decreasing = T)[20:1]
+}
+most_expressed_plots = list()
+# most_expressed_plots[[sample]] <- 
+for (sample in samples){
+    pdf(paste0(out_dir,sample,"_most_expressed_genes.pdf"))
+    boxplot(as.matrix(t(C[[sample]][most_expressed[[sample]], ])), cex = 0.1, las = 1, xlab = "% total count per cell",
+    col = (scales::hue_pal())(20)[20:1], horizontal = TRUE)
+    dev.off()
+}
+
+    # Filter MALAT1
+if (filter_MALAT == TRUE){
+  for (sample in samples){
+  scrna.list[[sample]] <- scrna.list[[sample]][!grepl("MALAT1", rownames(scrna.list[[sample]])), ]
+  }
+}
+# Filter Mitocondrial
+if (filter_MITO == TRUE){
+  for (sample in samples){
+  scrna.list[[sample]] <- scrna.list[[sample]][!grepl("^MT:|MT-|mt:|mt-", rownames(scrna.list[[sample]])), ]
+  }
+}
+# Filter Ribosomal gene (optional if that is a problem on your data) data.filt
+if (filter_RIBO == TRUE){
+  for (sample in samples){
+  scrna.list[[sample]] <- scrna.list[[sample]][!grepl("^RP[LS]|Rp[LS]", rownames(scrna.list[[sample]])), ]
+  }
+}
+
+# merge list of prefiltered Seurat
+scrna.combined_prefilter <- Merge_Seurat_List(scrna.list,
+                                              add.cell.ids = NULL,
+                                              merge.data = TRUE,
+                                              project = "sample_id")
+saveRDS(scrna.combined_prefilter,paste0(out_dir,'scrna.combined_prefilter.rds')) # Note this is after removing cells with > 0 % Mitochondrial Transcripts.
+
+# metadata variable
+metadata_prefilter <- scrna.combined_prefilter@meta.data
+
+metadata_prefilter_list <- list()
+for (sample in samples){
+    metadata_prefilter_list[[sample]] <- scrna.list[[sample]]@meta.data
+}
+# N Cells Prefilter
+n_cells = list()
+for (sample in samples){
+    n_cells[[sample]] <- length(rownames(metadata_prefilter_list[[sample]]))
+}
+
+prefilter_ncells_df <- as.matrix(n_cells)
+
+samples <- rownames(prefilter_ncells_df)
+NCells <- as.integer(unname(prefilter_ncells_df[,1]))
+
+n_cells_df <- as.data.frame(cbind(samples,NCells))
+
+### Doublet Finder
+# grab number of cells
+n_cells = list()
+for (sample in samples){
+n_cells[[sample]] <- length(colnames(scrna.list[[sample]]))
+}
+multiplet_rate = list()
+for (sample in samples){
+    if (n_cells[[sample]] <= 500){
+        multiplet_rate[[sample]] = 0.004
+    }else if (n_cells[[sample]] > 500 & n_cells[[sample]] < 2000){
+             multiplet_rate[[sample]] = 0.008 
+    } else if (n_cells[[sample]] >= 2000 & n_cells[[sample]] < 3000){
+      multiplet_rate[[sample]] = 0.016 
+    } else if (n_cells[[sample]] >= 3000 & n_cells[[sample]] < 4000){
+      multiplet_rate[[sample]] = 0.024
+    } else if (n_cells[[sample]] >= 4000 & n_cells[[sample]] < 5000){
+      multiplet_rate[[sample]] = 0.032
+    } else if (n_cells[[sample]] >= 5000 & n_cells[[sample]] < 6000){
+      multiplet_rate[[sample]] = 0.040
+    } else if (n_cells[[sample]] >= 6000 & n_cells[[sample]] < 7000){
+      multiplet_rate[[sample]] = 0.048
+    } else if (n_cells[[sample]] >= 7000 & n_cells[[sample]] < 8000){
+      multiplet_rate[[sample]] = 0.056
+    } else if (n_cells[[sample]] >= 8000 & n_cells[[sample]] < 9000){
+      multiplet_rate[[sample]] = 0.064
+    } else if (n_cells[[sample]] >= 9000 & n_cells[[sample]] < 10000){
+      multiplet_rate[[sample]] = 0.072
+    }else{
+     multiplet_rate[[sample]] = 0.080
+    }
+}
+nExp = list()
+for (sample in samples){
+scrna.list[[sample]] <- scrna.list[[sample]] %>% NormalizeData()
+scrna.list[[sample]] = FindVariableFeatures(scrna.list[[sample]], verbose = F)
+scrna.list[[sample]] = ScaleData(scrna.list[[sample]],verbose = F)
+scrna.list[[sample]] = RunPCA(scrna.list[[sample]], verbose = F, npcs = 20)
+scrna.list[[sample]] = RunUMAP(scrna.list[[sample]], dims = 1:10, verbose = F)
+nExp[[sample]] <- round(ncol(scrna.list[[sample]]) * multiplet_rate[[sample]])  # expected doublets
+scrna.list[[sample]] <- suppressMessages(doubletFinder_v3(scrna.list[[sample]], pN = 0.25, pK = 0.09, nExp = nExp[[sample]], PCs = 1:10))
+}
+
+
+DF.name = list()
+for (sample in samples){
+# name of the DF prediction can change, so extract the correct column name.
+DF.name[[sample]] = colnames(scrna.list[[sample]]@meta.data)[grepl("^DF.classification", colnames(scrna.list[[sample]]@meta.data))]
+}
+# Plot the Doublet Finder results
+UMAP_plots <- list()
+for (sample in samples){
+    UMAP_plots[[sample]] <-  cowplot::plot_grid(ncol = 2, DimPlot(scrna.list[[sample]], group.by = "sample_id") + NoAxes(),
+    DimPlot(scrna.list[[sample]], group.by = DF.name[[sample]]) + NoAxes())
+}
+
+for (sample in samples){
+    pdf(paste0(out_dir,sample,"_DoubletFinder_UMAP_Plot.pdf"),width=15,height=15,onefile=TRUE)
+    print(UMAP_plots[[sample]])
+    dev.off()
+}
+
+VlnPlots = list()
+for (sample in samples){
+VlnPlots[[sample]] <- VlnPlot(scrna.list[[sample]], features = "nFeature_RNA", group.by = DF.name[[sample]], pt.size = 0.1)
+}
+
+for (sample in samples){
+    pdf(paste0(out_dir,sample,"_DoubletFinder_VlnPlot.pdf"),width=15,height=15,onefile=TRUE)
+    print(VlnPlots[[sample]])
+    dev.off()
+}
+
+# Remove the Doublet Cells
+cells.use = list()
+for (sample in samples){
+     cells.use[[sample]] <- colnames(scrna.list[[sample]])[which(scrna.list[[sample]][[]][DF.name[[sample]]] == "Singlet")]
+     scrna.list[[sample]] <- subset(scrna.list[[sample]], cells = cells.use[[sample]])
+}
+
+so_postfilter <- Merge_Seurat_List(scrna.list,
+                                              add.cell.ids = NULL,
+                                              merge.data = TRUE,
+                                              project = "sample_id")
+saveRDS(so_postfilter,paste0(out_dir,"so_postfilter.rds"))
+metadata_postfilter <- so_postfilter@meta.data
+
+metadata_postfilter_list <- list()
+for (sample in samples){
+    metadata_postfilter_list[[sample]] <- scrna.list[[sample]]@meta.data
+}
+# N Cells Postfilter
+n_cells = list()
+for (sample in samples){
+    n_cells[[sample]] <- length(rownames(metadata_postfilter_list[[sample]]))
+}
+
+postfilter_ncells_df <- as.matrix(n_cells)
+
+samples <- rownames(postfilter_ncells_df)
+NCells <- as.integer(unname(postfilter_ncells_df[,1]))
+
+n_cells_df <- as.data.frame(cbind(samples,NCells))
+
+pdf(paste0(out_dir,"postfilter_n_cells.pdf"),onefile=TRUE,height=10,width=15)
+ggplot(data = n_cells_df, aes(x = samples,y = as.integer(NCells),fill = samples)) + geom_bar(stat="identity") + geom_text(aes(label=NCells), position=position_dodge(width=0.9), vjust=-0.25) + ggtitle("Number of Cells") 
+dev.off()
+```
+
+[Return to Contents](#snrna_seq_sample_top) 
+
+# Feature Selection
+```{r echo=FALSE,message=FALSE}
+suppressWarnings(suppressMessages(so_postfilter <- FindVariableFeatures(so_postfilter, selection.method = "vst",
+    nfeatures = 2000, verbose = FALSE, assay = "RNA")))
+top20 <- head(VariableFeatures(so_postfilter), 20)
+pdf(paste0(out_dir,"Top20_VariableGenes.pdf"))
+LabelPoints(plot = VariableFeaturePlot(so_postfilter), points = top20, repel = TRUE)
+dev.off()
+
+so_postfilter <- ScaleData(so_postfilter, vars.to.regress = "nFeature_RNA",assay = "RNA")
+so_postfilter <- RunPCA(so_postfilter, npcs = 50, verbose = F)
+
+pdf(paste0(out_dir,"PCA_Plots.pdf"),width=30,height=30)
+plot_grid(ncol = 3, DimPlot(so_postfilter, reduction = "pca", group.by = "sample_id",
+    dims = 1:2), DimPlot(so_postfilter, reduction = "pca", group.by = "sample_id", dims = 3:4),
+    DimPlot(so_postfilter, reduction = "pca", group.by = "sample_id", dims = 5:6))
+dev.off()
+
+pdf(paste0(out_dir,"Genes_Per_PC.pdf"),width=30,height=30)
+VizDimLoadings(so_postfilter, dims = 1:5, reduction = "pca", ncol = 5, balanced = T)
+dev.off()
+
+pdf(paste0(out_dir,"ElbowPlot.pdf"))
+ElbowPlot(so_postfilter, reduction = "pca", ndims = 50)
+dev.off()
+so_postfilter <- RunUMAP(so_postfilter, reduction = "pca", dims = 1:20, n.components = 2, n.neighbors = 30,
+    n.epochs = 200, min.dist = 0.3, learning.rate = 1, spread = 1)
+
+pdf(paste0(out_dir,"UMAP_Unannotated.pdf"))
+DimPlot(so_postfilter)
+dev.off()
+
+# Split Seurat Object
+alldata.list <- SplitObject(so_postfilter, split.by = "sample_id")
+
+for (i in 1:length(alldata.list)) {
+    alldata.list[[i]] <- NormalizeData(alldata.list[[i]], verbose = FALSE)
+    alldata.list[[i]] <- FindVariableFeatures(alldata.list[[i]], selection.method = "vst",
+        nfeatures = 2000, verbose = FALSE)
+}
+# Find Anchors
+alldata.anchors <- FindIntegrationAnchors(object.list = alldata.list, dims = 1:30,
+    reduction = "cca")
+# Integrate
+alldata.int <- IntegrateData(anchorset = alldata.anchors, dims = 1:30, new.assay.name = "CCA")
+
+# Run Dimensionality reduction on integrated space
+alldata.int <- ScaleData(alldata.int, verbose = FALSE)
+alldata.int <- RunPCA(alldata.int, npcs = 30, verbose = FALSE)
+alldata.int <- RunUMAP(alldata.int, dims = 1:30)
+
+
+alldata.harmony <- RunHarmony(alldata, group.by.vars = "sample_id", reduction = "pca",
+    dims.use = 1:50, assay.use = "RNA")
+
+# Here we use all PCs computed from Harmony for UMAP calculation
+alldata.int[["harmony"]] <- alldata.harmony[["harmony"]]
+alldata.int <- RunUMAP(alldata.int, dims = 1:50, reduction = "harmony", reduction.name = "umap_harmony")
+
+saveRDS(alldata.int,paste0(out_dir,"snRNA_postfilter_int.rds"))
+
+``` 
+[Return to Contents](#snrna_seq_sample_top) 
+
+```{r echo=FALSE,message=FALSE}
+### Plot Harmony & CCA
+# Plotting
+p2 <- DimPlot_scCustom(alldata.int, reduction = "umap", group.by = "sample_id") + ggtitle("UMAP CCA")
+pdf(paste0(in_dir,"UMAP_CCA.pdf"))
+p2 + coord_fixed()
+dev.off()
+p3 <- DimPlot_scCustom(alldata.int, reduction = "umap_harmony", group.by = "sample_id") +
+    ggtitle("UMAP Harmony")
+pdf(paste0(in_dir,"UMAP_Harmony.pdf"))
+p3 + coord_fixed()
+dev.off()
+``` 
+[Return to Contents](#snrna_seq_sample_top) 
+
+```{r echo=FALSE,message=FALSE}
+# Clustering
+alldata.int <- FindNeighbors(alldata.int, dims = 1:30, k.param = 60, prune.SNN = 1/15)
+# Clustering with louvain (algorithm 1)
+alldata.int <- FindClusters(alldata.int, graph.name = "CCA_snn", resolution = seq(0.5,3,by=0.1),verbose=FALSE)
+
+res_0.5 <-  scCustomize::DimPlot_scCustom(alldata.int, group.by = "CCA_snn_res.0.5", label = TRUE) + ggtitle("louvain_0.5")
+res_1   <- scCustomize::DimPlot_scCustom(alldata.int, group.by = "CCA_snn_res.1", label = TRUE) + ggtitle("louvain_1")
+res_2   <- scCustomize::DimPlot_scCustom(alldata.int, group.by = "CCA_snn_res.2", label = TRUE) + ggtitle("louvain_2")
+pdf(paste0(in_dir,"resolution_snn_res_0.5.pdf"))
+res_0.5
+dev.off()
+pdf(paste0(in_dir,"resolution_snn_res_res_1.pdf"))
+res_1
+dev.off()
+pdf(paste0(in_dir,"resolution_snn_res_res_2.pdf"))
+res_2
+dev.off()
+
+suppressPackageStartupMessages(library(clustree))
+pdf(paste0(in_dir,"clustree_resolutions.pdf"))
+clustree(alldata.int@meta.data, prefix = "CCA_snn_res.")
+dev.off()
+
+# Save Data
+saveRDS(alldata.int,paste0(in_dir,"snRNA_postfilter_int_cl.rds"))
+```
+```{r echo=FALSE,message=FALSE}
+# Set the identity as louvain with resolution 0.5
+sel.clust = "CCA_snn_res.0.5"
+
+alldata.int <- SetIdent(alldata.int, value = sel.clust)
+# Find Markers
+DefaultAssay(alldata.int) <- "RNA"
+markers_genes <- FindAllMarkers(alldata.int, log2FC.threshold = 0.2, test.use = "wilcox",
+    min.pct = 0.1, min.diff.pct = 0.2, only.pos = TRUE, max.cells.per.ident = 50,
+    assay = "RNA")
+names(markers_genes)[names(markers_genes) == "gene"] <- "geneSymbol"
+write.table(markers_genes, paste0(out_dir, "FindAllMarkers.clusters.xls"), sep = "\t", row.names = F)
+# top 10
+top10<- markers_genes %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+write.table(top10, paste0(out_dir, "FindAllMarkers.clusters.top10.xls"), sep = "\t", col.names = NA)
+
+# top 25
+top25 <- markers_genes %>% group_by(cluster) %>% top_n(n = 25, wt = avg_log2FC)
+write.table(top25, paste0(out_dir, "FindAllMarkers.clusters.top25.xls"), sep = "\t", col.names = NA)
+
+# top 50
+top50 <- markers_genes %>% group_by(cluster) %>% top_n(n = 50, wt = avg_log2FC)
+write.table(top50, paste0(out_dir, "FindAllMarkers.clusters.top50.xls"), sep = "\t", col.names = NA)
+
+# Step 6: Top 3 identified genes, feature plot, dotplot
+topN <- Extract_Top_Markers(markers_genes, num_genes = 25, named_vector = FALSE, make_unique = TRUE, gene_column = "geneSymbol")
+
+# Feature plot
+pdf(paste0(out_dir, "combined.top25markers.pdf"))
+ggp = list()
+for (marker in topN){
+    ggp[[marker]]=FeaturePlot(alldata.int, features=marker)
+    print(ggp[[marker]])
+}
+dev.off()
+# Dotplot
+remove_markers <- setdiff(markers,row.names(alldata.int))
+markers <- markers[!markers%in%remove_markers]
+markers <- unique(markers)
+
+pdf(paste0(out_dir, "combined.markers.geneSymbol.pdf"))
+ggp = list()
+for (marker in markers){
+    ggp[[marker]]=FeaturePlot(alldata.int, features=marker,min.cutoff = 0) + ggtitle(marker)
+    print(ggp[[marker]])
+}
+dev.off()
+
+pdf(paste0(out_dir, "combined.dotplot.geneSymbol.pdf"), width = 30, height = 10)
+p1 <- DotPlot_scCustom(alldata.int, features = markers, x_lab_rotate = TRUE) + scale_x_discrete(breaks= markers)
+print(p1)
+dev.off()
+``` 

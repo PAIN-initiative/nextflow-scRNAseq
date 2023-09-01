@@ -1,0 +1,707 @@
+<!-- # Child Rmarkdown Document for Cluster Annotation -->
+<!-- Parent document must have a variable "in_rna" containing metadata-injected H5 files by sample --> 
+<a id="rna_seq_unintegrated_cluster_annotation_top"></a>
+
+```{r, include=FALSE} 
+orig_workspace <- ls()
+
+scrna_seq_sample_module_version <- "1.0.2" # 20211201
+stm("Starting scRNA Cluster Annotation Module")
+```
+
+### Contents 
+#### [QC Seurat Object](#seurat_qc)
+  - [Principal Component Plot (Elbow Plot)](#elbow_plot)
+  - [UMAP-Treatments](#UMAP)
+  - [Marker Gene Table](#mgt) 
+  - [UMAP with Cell Annotations](#cell_type_annotation)
+<details style="color: lightgray;">  
+  <summary>Expand Code</summary> 
+
+
+```{r rna_markergenes}
+stm("Reading in Marker Genes")
+
+if (length(grep("https",in_key)) > 0) {
+    ss <- read_sheet(in_key)
+    } else if (length(grep(".xlsx",in_key)) > 0 ){
+        ss <- import_list(in_key)
+    } else {
+        ss <- read.csv(in_key)
+}
+
+metatable <- ss$MetaTable_expectedCell
+if ("Final list" %in% colnames(metatable)) {
+    metatable <- metatable %>% filter(metatable$"Final list" == 1)
+}
+samples <- unique(metatable$Sample)
+treatments <- metatable$Treatment      
+              
+# Format Marker Genes
+MarkerGenes <- ss$MarkerGenes
+colnames(MarkerGenes) <- c('marker_gene','cell_type','ref')
+markers <- MarkerGenes$'marker_gene'
+
+# read in gene name table
+geneTable <- read.csv(paste0(refdir, "geneAnnotationTable.csv"), header = T, row.names = 1)
+``` 
+  
+```{r }
+# scCustermize code updated by developer, https://github.com/samuel-marsh/scCustomize/issues/27
+# Clustered_DotPlot_relabel function from developer
+
+Clustered_DotPlot_relabel <- function(
+  seurat_object,
+  features,
+  new_row_labels,
+  colors_use_exp = viridis_plasma_dark_high,
+  exp_color_min = -2,
+  exp_color_middle = NULL,
+  exp_color_max = 2,
+  print_exp_quantiles = FALSE,
+  colors_use_idents = NULL,
+  x_lab_rotate = TRUE,
+  k = 1,
+  row_km_repeats = 1000,
+  column_km_repeats = 1000,
+  row_label_size = 8,
+  raster = FALSE,
+  plot_km_elbow = TRUE,
+  elbow_kmax = NULL,
+  assay = NULL,
+  group.by = NULL,
+  idents = NULL,
+  show_parent_dend_line = TRUE,
+  ggplot_default_colors = FALSE,
+  seed = 123
+) {
+  # Check for packages
+  ComplexHeatmap_check <- PackageCheck("ComplexHeatmap", error = FALSE)
+  if (!ComplexHeatmap_check[1]) {
+    stop(
+      "Please install the ComplexHeatmap package to use Clustered_DotPlot",
+      "\nThis can be accomplished with the following commands: ",
+      "\n----------------------------------------",
+      "\ninstall.packages('BiocManager')",
+      "\nBiocManager::install('ComplexHeatmap')",
+      "\n----------------------------------------",
+      call. = FALSE
+    )
+  }
+  
+  # Check Seurat
+  scCustomize:::Is_Seurat(seurat_object = seurat_object)
+  
+  # Check unique features
+  features_unique <- unique(x = features)
+  
+  if (length(x = features_unique) != length(x = features)) {
+    warning("Feature list contains duplicates, making unique.")
+  }
+  
+  # Check exp min/max set correctly
+  if (!exp_color_min < exp_color_max) {
+    stop("The value for 'exp_color_min': ", exp_color_min, ", must be less than the value for 'exp_color_max': ", exp_color_max, ".")
+  }
+  
+  # Get DotPlot data
+  seurat_plot <- DotPlot(object = seurat_object, features = features_unique, assay = assay, group.by = group.by, scale = TRUE, idents = idents, col.min = NULL, col.max = NULL)
+  
+  data <- seurat_plot$data
+  
+  # Get expression data
+  exp_mat <- data %>%
+    dplyr::select(-pct.exp, -avg.exp) %>%
+    pivot_wider(names_from = id, values_from = avg.exp.scaled) %>%
+    as.data.frame()
+  
+  row.names(x = exp_mat) <- exp_mat$features.plot
+  
+  # Check NAs if idents
+  if (!is.null(x = idents)) {
+    # Find NA features and print warning
+    excluded_features <- exp_mat[rowSums(is.na(x = exp_mat)) > 0,] %>%
+      rownames()
+    warning("The following features were removed as there is no scaled expression present in subset (`idents`) of object provided: ", glue_collapse_scCustom(input_string = excluded_features, and = TRUE), ".")
+    
+    # Extract good features
+    good_features <- rownames(exp_mat)
+    
+    # Remove rows with NAs
+    exp_mat <- exp_mat %>%
+      filter(features.plot %in% good_features)
+  }
+  
+  exp_mat <- exp_mat[,-1] %>%
+    as.matrix()
+  
+  # Get percent expressed data
+  percent_mat <- data %>%
+    dplyr::select(-avg.exp, -avg.exp.scaled) %>%
+    pivot_wider(names_from = id, values_from = pct.exp) %>%
+    as.data.frame()
+  
+  row.names(x = percent_mat) <- percent_mat$features.plot
+  
+  # Subset dataframe for NAs if idents so that exp_mat and percent_mat match
+  if (!is.null(x = idents)) {
+    percent_mat <- percent_mat %>%
+      filter(features.plot %in% good_features)
+  }
+  
+  percent_mat <- percent_mat[,-1] %>%
+    as.matrix()
+  
+  # print quantiles
+  if (print_exp_quantiles) {
+    message("Quantiles of gene expression data are:")
+    print(quantile(exp_mat, c(0.1, 0.5, 0.9, 0.99)))
+  }
+  
+  # set assay (if null set to active assay)
+  assay <- assay %||% DefaultAssay(object = seurat_object)
+  
+  # Set default color palette based on number of levels being plotted
+  if (is.null(x = group.by)) {
+    group_by_length <- length(x = unique(x = seurat_object@active.ident))
+  } else {
+    group_by_length <- length(x = unique(x = seurat_object@meta.data[[group.by]]))
+  }
+  
+  # Check colors use vs. ggplot2 color scale
+  if (!is.null(x = colors_use_idents) && ggplot_default_colors) {
+    stop("Cannot provide both custom palette to `colors_use` and specify `ggplot_default_colors = TRUE`.")
+  }
+  if (is.null(x = colors_use_idents)) {
+    # set default plot colors
+    if (is.null(x = colors_use_idents)) {
+      colors_use_idents <- scCustomize_Palette(num_groups = group_by_length, ggplot_default_colors = ggplot_default_colors, color_seed = color_seed)
+    }
+  }
+  
+  # Pull Annotation and change colors to ComplexHeatmap compatible format
+  Identity <- colnames(exp_mat)
+  
+  identity_colors <- DiscretePalette_scCustomize(num_colors = length(Identity), palette = "polychrome", shuffle_pal = F)
+  names(identity_colors) <- Identity
+  identity_colors_list <- list(Identity = identity_colors)
+  
+  # Create identity annotation
+  column_ha <- ComplexHeatmap::HeatmapAnnotation(Identity = Identity,
+                                                 col =  identity_colors_list,
+                                                 na_col = "grey",
+                                                 name = "Identity"
+  )
+  
+  # Set middle of color scale if not specified
+  if (is.null(x = exp_color_middle)) {
+    exp_color_middle <- scCustomize:::Middle_Number(min = exp_color_min, max = exp_color_max)
+  }
+  
+  palette_length <- length(colors_use_exp)
+  palette_middle <- scCustomize:::Middle_Number(min = 0, max = palette_length)
+  
+  # Create palette
+  col_fun = colorRamp2(c(exp_color_min, exp_color_middle, exp_color_max), colors_use_exp[c(1,palette_middle, palette_length)])
+  
+  # Calculate and plot Elbow
+  if (plot_km_elbow) {
+    # if elbow_kmax not NULL check it is usable
+    if (!is.null(x = elbow_kmax) && elbow_kmax > (nrow(x = exp_mat) - 1)) {
+      elbow_kmax <- nrow(x = exp_mat) - 1
+      warning("The value provided for 'elbow_kmax' is too large.  Changing to (length(x = features)-1): ", elbow_kmax)
+    }
+    
+    # if elbow_kmax is NULL set value based on input feature list
+    if (is.null(x = elbow_kmax)) {
+      # set to (length(x = features)-1) if less than 21 features OR to 20 if greater than 21 features
+      if (nrow(x = exp_mat) > 21) {
+        elbow_kmax <- 20
+      } else {
+        elbow_kmax <- nrow(x = exp_mat) - 1
+      }
+    }
+    
+    km_elbow_plot <- scCustomize:::kMeans_Elbow(data = exp_mat, k_max = elbow_kmax)
+  }
+  
+  # prep heatmap
+  if (raster) {
+    layer_fun = function(j, i, x, y, w, h, fill) {
+      grid.rect(x = x, y = y, width = w, height = h,
+                gp = gpar(col = NA, fill = NA))
+      grid.circle(x=x,y=y,r= sqrt(ComplexHeatmap::pindex(percent_mat, i, j)/100)  * unit(2, "mm"),
+                  gp = gpar(fill = col_fun(ComplexHeatmap::pindex(exp_mat, i, j)), col = NA))
+    }
+  } else {
+    cell_fun = function(j, i, x, y, w, h, fill) {
+      grid.rect(x = x, y = y, width = w, height = h,
+                gp = gpar(col = NA, fill = NA))
+      grid.circle(x=x,y=y,r= sqrt(percent_mat[i, j]/100) * unit(2, "mm"),
+                  gp = gpar(fill = col_fun(exp_mat[i, j]), col = NA))
+    }
+  }
+  
+  # Create legend for point size
+  lgd_list = list(
+    ComplexHeatmap::Legend(labels = c(0.25,0.5,0.75,1), title = "Percent Expressing",
+                           graphics = list(
+                             function(x, y, w, h) grid.circle(x = x, y = y, r = sqrt(0.25) * unit(2, "mm"),
+                                                              gp = gpar(fill = "black")),
+                             function(x, y, w, h) grid.circle(x = x, y = y, r = sqrt(0.5) * unit(2, "mm"),
+                                                              gp = gpar(fill = "black")),
+                             function(x, y, w, h) grid.circle(x = x, y = y, r = sqrt(0.75) * unit(2, "mm"),
+                                                              gp = gpar(fill = "black")),
+                             function(x, y, w, h) grid.circle(x = x, y = y, r = 1 * unit(2, "mm"),
+                                                              gp = gpar(fill = "black")))
+    )
+  )
+  
+  # Set x label roration
+  if (is.numeric(x = x_lab_rotate)) {
+    x_lab_rotate <- x_lab_rotate
+  } else if (isTRUE(x = x_lab_rotate)) {
+    x_lab_rotate <- 45
+  } else {
+    x_lab_rotate <- 0
+  }
+  
+  # Create Plot
+  set.seed(seed = seed)
+  if (raster) {
+    cluster_dot_plot <- ComplexHeatmap::Heatmap(exp_mat,
+                                                heatmap_legend_param=list(title="Expression"),
+                                                col=col_fun,
+                                                rect_gp = gpar(type = "none"),
+                                                layer_fun = layer_fun,
+                                                row_names_gp = gpar(fontsize = row_label_size),
+                                                row_km = k,
+                                                row_km_repeats = row_km_repeats,
+                                                border = "black",
+                                                top_annotation = column_ha,
+                                                column_km_repeats = column_km_repeats,
+                                                show_parent_dend_line = show_parent_dend_line,
+                                                column_names_rot = x_lab_rotate)
+  } else {
+    cluster_dot_plot <- ComplexHeatmap::Heatmap(exp_mat,
+                                                heatmap_legend_param=list(title="Expression"),
+                                                col=col_fun,
+                                                rect_gp = gpar(type = "none"),
+                                                cell_fun = cell_fun,
+                                                row_names_gp = gpar(fontsize = row_label_size),
+                                                row_km = k,
+                                                row_km_repeats = row_km_repeats,
+                                                border = "black",
+                                                top_annotation = column_ha,
+                                                column_km_repeats = column_km_repeats,
+                                                show_parent_dend_line = show_parent_dend_line,
+                                                column_names_rot = x_lab_rotate)
+  }
+  
+  # Add pt.size legend & return plots
+  if (plot_km_elbow) {
+    return(list(km_elbow_plot, ComplexHeatmap::draw(cluster_dot_plot, annotation_legend_list = lgd_list)))
+  }
+  return(ComplexHeatmap::draw(cluster_dot_plot + rowAnnotation(rn= anno_text(new_row_labels)), annotation_legend_list = lgd_list))
+}
+```
+  
+
+```{r pre_processing}
+### Pre-Processing
+stm('Preprocesing')
+# read H5 file directly into Seurat Object
+scrna.list = list()
+for (sample in samples){
+  exp.matrix <- Read10X_h5(paste0(cellrangers_dir, sample, "/outs/filtered_feature_bc_matrix.h5"), use.names = T)
+  seurat_obj <- CreateSeuratObject(counts = exp.matrix)
+  scrna.list[[sample]] <- seurat_obj
+}
+
+
+# Remove raw data to save memory
+rm(exp.matrix)
+                        
+# add treatment
+for(i in 1:length(samples)){
+  sample=samples[i]; treatment=treatments[i];
+  scrna.list[[sample]]$treatment <- treatment
+}
+
+# add sample name
+for(i in 1:length(samples)){
+  sample=samples[i]; sample_id=samples[i];
+  scrna.list[[sample]]$sample_id <- sample_id
+}
+```
+
+[Return to Contents](#rna_seq_sample_top) 
+
+```{r QC}
+# Add percent.mt and percent.rb to cell level metadata
+for (sample in samples) {
+  scrna.list[[sample]][["percent.mito"]] <- PercentageFeatureSet(scrna.list[[sample]], pattern = "^MT:|MT-|mt:|mt-") 
+  scrna.list[[sample]][["percent.ribo"]] <- PercentageFeatureSet(scrna.list[[sample]], pattern = "^RP[LS]|Rp[LS]")
+}
+# merge list of prefiltered Seurat
+scrna.combined_prefilter <- Merge_Seurat_List(scrna.list,
+                                              add.cell.ids = NULL,
+                                              merge.data = TRUE,
+                                              project = "sample_id")
+# metadata variable
+metadata_prefilter <- scrna.combined_prefilter@meta.data
+# Save Prefilter
+saveRDS(scrna.combined_prefilter, paste0(outdir, "scrna.combined_prefilter.seurat.", projectName, ".rds"))
+                   
+# Filtered Cells with 3SD of mean nCount and nFeature, percent of mito
+  
+# Filtered cells with 3SD of mean nCount and nFeature, percent of mito
+qc_cutoff = 3
+mito_cutoff = percent_mito
+ribo_cutoff = percent_ribo
+for (sample in samples){
+  mean.nCount <- mean(scrna.list[[sample]]@meta.data$nCount_RNA)
+  sd.nCount <- sd(scrna.list[[sample]]@meta.data$nCount_RNA)
+  mean.nFeature <- mean(scrna.list[[sample]]@meta.data$nFeature_RNA)
+  sd.nFeature <- sd(scrna.list[[sample]]@meta.data$nFeature_RNA)
+  scrna.list[[sample]] <- subset(scrna.list[[sample]], subset = nCount_RNA > mean.nCount - qc_cutoff*sd.nCount & nCount_RNA < mean.nCount + qc_cutoff*sd.nCount & nFeature_RNA > mean.nFeature - qc_cutoff*sd.nFeature & nFeature_RNA < mean.nFeature + qc_cutoff*sd.nFeature & percent.mito < mito_cutoff & percent.ribo < ribo_cutoff)
+}
+  
+# Compute the relative expression of each gene per cell Use sparse matrix
+# operations, if your dataset is large, doing matrix devisions the regular way
+# will take a very long time.
+C = list()
+most_expressed = list()
+par(mar = c(4, 8, 2, 1))
+for (sample in samples){
+C[[sample]] <- scrna.list[[sample]]@assays$RNA@counts
+C[[sample]] <- Matrix::t(Matrix::t(C[[sample]])/Matrix::colSums(C[[sample]])) * 100
+most_expressed[[sample]] <- order(apply(C[[sample]], 1, median), decreasing = T)[20:1]
+}
+most_expressed_plots = list()
+# most_expressed_plots[[sample]] <- 
+for (sample in samples){
+    pdf(paste0(outdir,sample,"_most_expressed_genes.pdf"))
+    boxplot(as.matrix(t(C[[sample]][most_expressed[[sample]], ])), cex = 0.1, las = 1, xlab = "% total count per cell",
+    col = (scales::hue_pal())(20)[20:1], horizontal = TRUE)
+    dev.off()
+}
+
+    # Filter MALAT1
+if (filter_MALAT == TRUE){
+  for (sample in samples){
+  scrna.list[[sample]] <- scrna.list[[sample]][!grepl("MALAT1", rownames(scrna.list[[sample]])), ]
+  }
+}
+# Filter Mitocondrial
+if (filter_MITO == TRUE){
+  for (sample in samples){
+  scrna.list[[sample]] <- scrna.list[[sample]][!grepl("^MT:|MT-|mt:|mt-", rownames(scrna.list[[sample]])), ]
+  }
+}
+# Filter Ribosomal gene (optional if that is a problem on your data) data.filt
+if (filter_RIBO == TRUE){
+  for (sample in samples){
+  scrna.list[[sample]] <- scrna.list[[sample]][!grepl("^RP[LS]|Rp[LS]", rownames(scrna.list[[sample]])), ]
+  }
+}
+### Doublet Finder
+# grab number of cells
+n_cells = list()
+for (sample in samples){
+n_cells[[sample]] <- length(colnames(scrna.list[[sample]]))
+}
+multiplet_rate = list()
+for (sample in samples){
+    if (n_cells[[sample]] <= 500){
+        multiplet_rate[[sample]] = 0.004
+    }else if (n_cells[[sample]] > 500 & n_cells[[sample]] < 2000){
+             multiplet_rate[[sample]] = 0.008 
+    } else if (n_cells[[sample]] >= 2000 & n_cells[[sample]] < 3000){
+      multiplet_rate[[sample]] = 0.016 
+    } else if (n_cells[[sample]] >= 3000 & n_cells[[sample]] < 4000){
+      multiplet_rate[[sample]] = 0.024
+    } else if (n_cells[[sample]] >= 4000 & n_cells[[sample]] < 5000){
+      multiplet_rate[[sample]] = 0.032
+    } else if (n_cells[[sample]] >= 5000 & n_cells[[sample]] < 6000){
+      multiplet_rate[[sample]] = 0.040
+    } else if (n_cells[[sample]] >= 6000 & n_cells[[sample]] < 7000){
+      multiplet_rate[[sample]] = 0.048
+    } else if (n_cells[[sample]] >= 7000 & n_cells[[sample]] < 8000){
+      multiplet_rate[[sample]] = 0.056
+    } else if (n_cells[[sample]] >= 8000 & n_cells[[sample]] < 9000){
+      multiplet_rate[[sample]] = 0.064
+    } else if (n_cells[[sample]] >= 9000 & n_cells[[sample]] < 10000){
+      multiplet_rate[[sample]] = 0.072
+    }else{
+     multiplet_rate[[sample]] = 0.080
+    }
+}
+nExp = list()
+for (sample in samples){
+scrna.list[[sample]] <- scrna.list[[sample]] %>% NormalizeData()
+scrna.list[[sample]] = FindVariableFeatures(scrna.list[[sample]], verbose = F)
+scrna.list[[sample]] = ScaleData(scrna.list[[sample]],verbose = F)
+scrna.list[[sample]] = RunPCA(scrna.list[[sample]], verbose = F, npcs = 20)
+scrna.list[[sample]] = RunUMAP(scrna.list[[sample]], dims = 1:10, verbose = F)
+nExp[[sample]] <- round(ncol(scrna.list[[sample]]) * multiplet_rate[[sample]])  # expected doublets
+scrna.list[[sample]] <- doubletFinder_v3(scrna.list[[sample]], pN = 0.25, pK = 0.09, nExp = nExp[[sample]], PCs = 1:10)
+}
+
+
+DF.name = list()
+for (sample in samples){
+# name of the DF prediction can change, so extract the correct column name.
+DF.name[[sample]] = colnames(scrna.list[[sample]]@meta.data)[grepl("^DF.classification", colnames(scrna.list[[sample]]@meta.data))]
+}
+# Plot the Doublet Finder results
+UMAP_plots <- list()
+for (sample in samples){
+    UMAP_plots[[sample]] <-  cowplot::plot_grid(ncol = 2, DimPlot(scrna.list[[sample]], group.by = "sample_id") + NoAxes(),
+    DimPlot(scrna.list[[sample]], group.by = DF.name[[sample]]) + NoAxes())
+}
+
+for (sample in samples){
+    pdf(paste0(outdir,sample,"_DoubletFinder_UMAP_Plot.pdf"),width=15,height=15,onefile=TRUE)
+    print(UMAP_plots[[sample]])
+    dev.off()
+}
+
+VlnPlots = list()
+for (sample in samples){
+VlnPlots[[sample]] <- VlnPlot(scrna.list[[sample]], features = "nFeature_RNA", group.by = DF.name[[sample]], pt.size = 0.1)
+}
+
+for (sample in samples){
+    pdf(paste0(outdir,sample,"_DoubletFinder_VlnPlot.pdf"),width=15,height=15,onefile=TRUE)
+    print(VlnPlots[[sample]])
+    dev.off()
+}
+
+so_postfilter <- Merge_Seurat_List(scrna.list,
+                                              add.cell.ids = NULL,
+                                              merge.data = TRUE,
+                                              project = "sample_id")
+metadata_postfilter <- so_postfilter@meta.data
+```
+
+### QC Plots
+<a  id="Mitochondrial_Percentage"></a> 
+### Mitochondrial Percentage
+```{r Mitochondrial Percentage Plot}
+# mito
+prefilter_qc_mito <- metadata_prefilter %>% ggplot(aes(x=nCount_RNA, y=nFeature_RNA, color=percent.mito)) + 
+geom_point() + 
+scale_colour_gradient(low = "gray90", high = "black") +
+stat_smooth(method=lm) +
+scale_x_log10() +
+scale_y_log10() + 
+theme_classic() +
+geom_vline(xintercept = 500) +
+geom_hline(yintercept = 300) +
+facet_wrap(~orig.ident) + 
+ggtitle("Prefilter")
+
+postfilter_qc_mito <- metadata_postfilter %>% ggplot(aes(x=nCount_RNA, y=nFeature_RNA, color=percent.mito)) + 
+geom_point() + 
+scale_colour_gradient(low = "gray90", high = "black") +
+stat_smooth(method=lm) +
+scale_x_log10() +
+scale_y_log10() + 
+theme_classic() +
+geom_vline(xintercept = 500) +
+geom_hline(yintercept = 300) +
+facet_wrap(~orig.ident) + 
+ggtitle("Postfilter")
+
+ggarrange(prefilter_qc_mito,postfilter_qc_mito,ncol=1,nrow=2,widths = 25,heights = 30)
+```
+
+<a  id="Ribosomal_Percentage"></a> 
+### Ribosomal Percentage 
+```{r Ribo Percentage Plot}
+# ribo
+prefilter_qc_ribo <- metadata_prefilter %>% ggplot(aes(x=nCount_RNA, y=nFeature_RNA, color=percent.ribo)) + 
+geom_point() + 
+scale_colour_gradient(low = "gray90", high = "black") +
+stat_smooth(method=lm) +
+scale_x_log10() +
+scale_y_log10() + 
+theme_classic() +
+geom_vline(xintercept = 500) +
+geom_hline(yintercept = 300) +
+facet_wrap(~orig.ident) +
+ggtitle("Prefilter")
+
+postfilter_qc_ribo <- metadata_postfilter %>% ggplot(aes(x=nCount_RNA, y=nFeature_RNA, color=percent.ribo)) + 
+geom_point() + 
+scale_colour_gradient(low = "gray90", high = "black") +
+stat_smooth(method=lm) +
+scale_x_log10() +
+scale_y_log10() + 
+theme_classic() +
+geom_vline(xintercept = 500) +
+geom_hline(yintercept = 300) +
+facet_wrap(~orig.ident) +
+ggtitle("Postfilter")
+
+ggarrange(prefilter_qc_ribo,postfilter_qc_ribo,ncol=1,nrow=2,widths = 10,heights = 8)
+```
+<a  id="UMIs_transcripts_per_cell"></a> 
+### UMIs/transcripts per cell
+```{r Visualize the number UMIs/transcripts per cell}
+UMIs_transcripts_per_cell_prefilter <- metadata_prefilter %>% 
+  	ggplot(aes(color=orig.ident, x=nCount_RNA, fill= orig.ident)) + 
+  	geom_density(alpha = 0.2) + 
+  	scale_x_log10() + 
+  	theme_classic() +
+  	ylab("Cell density") +
+  	geom_vline(xintercept = 500) + 
+    ggtitle("Prefilter")
+
+UMIs_transcripts_per_cell_postfilter <- metadata_postfilter %>% 
+  	ggplot(aes(color=orig.ident, x=nCount_RNA, fill= orig.ident)) + 
+  	geom_density(alpha = 0.2) + 
+  	scale_x_log10() + 
+  	theme_classic() +
+  	ylab("Cell density") +
+  	geom_vline(xintercept = 500) + 
+    ggtitle("Postfilter")
+
+ggarrange(UMIs_transcripts_per_cell_prefilter,UMIs_transcripts_per_cell_postfilter,ncol=1,nrow=2,widths = 10,heights = 8)
+```
+<a  id="Genes Per Cell"></a> 
+### genes per cell 
+```{r Genes Per Cell}
+genes_per_cell_pre <- metadata_prefilter %>% 
+  	ggplot(aes(color=orig.ident, x=nCount_RNA, fill=orig.ident )) + 
+  	geom_density(alpha = 0.2) + 
+  	theme_classic() +
+  	scale_x_log10() + 
+  	geom_vline(xintercept = 300) + 
+    ggtitle("Prefilter")
+
+genes_per_cell_post <- metadata_postfilter %>% 
+  	ggplot(aes(color=orig.ident, x=nCount_RNA, fill=orig.ident )) + 
+  	geom_density(alpha = 0.2) + 
+  	theme_classic() +
+  	scale_x_log10() + 
+  	geom_vline(xintercept = 300) + 
+    ggtitle("Postfilter")
+
+ggarrange(genes_per_cell_pre,genes_per_cell_post,ncol=1,nrow=2,widths = 10,heights = 8)
+```
+  
+```{r }
+
+# Preprocess workflow
+# normalize and identify variable features 
+scrna.list <- SplitObject(so_postfilter, split.by = "sample_id")
+scrna.list <- lapply(X = scrna.list, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+    x <- ScaleData(x, verbose = FALSE)
+    x <- RunPCA(x, npcs = 15, verbose = FALSE)
+})
+
+           
+```
+<a  id="elbow_plot"></a> 
+### Linear Dimensionality Reduction 
+```{r rna_Elbow_Plot}
+    Elbow_Plots <- list()
+    for (sample in samples){
+    Elbow_Plots[[sample]] <- ElbowPlot(scrna.list[[sample]]) + ggtitle("Elbow Plot") + theme(aspect.ratio=5/10) + theme(plot.margin = unit(c(6, 6, 6, 6), "cm"))
+    pdf(paste0(out_dir,sample, "_ElbowPlot.pdf"))
+    print(Elbow_Plots[[sample]] + coord_fixed())
+    dev.off()
+    }
+```
+<a  id="UMAP_Resolutions"></a> 
+### UMAP - Resolutions
+```{r rna_UMAP_Resolutions_Plot}
+# Continue on analysis
+res_0.5 = list()
+res_0.7 = list()
+res_1 = list()
+res_1.2 = list()
+res_1.4 = list()
+meta = list()
+for (sample in samples){
+    scrna.list[[sample]] <- RunUMAP(scrna.list[[sample]], reduction = "pca", dims = 1:8,verbose=FALSE)
+    scrna.list[[sample]] <- FindNeighbors(scrna.list[[sample]], reduction = "pca", dims = 1:8,verbose=FALSE)
+    scrna.list[[sample]] <- FindClusters(scrna.list[[sample]], resolution = seq(0.5,3,by=0.1),verbose=FALSE)
+
+    res_0.5[[sample]] <- DimPlot(scrna.list[[sample]], group.by = "RNA_snn_res.0.5", label = TRUE)
+    pdf(paste0(out_dir,sample,"_res_0.5.pdf"))
+    print(res_0.5[[sample]])
+    dev.off()
+    res_0.7[[sample]] <- DimPlot(scrna.list[[sample]], group.by = "RNA_snn_res.0.7", label = TRUE)
+    pdf(paste0(out_dir,sample,"_res_0.7.pdf"))
+    print(res_0.7[[sample]])
+    dev.off()
+    res_1[[sample]] <- DimPlot(scrna.list[[sample]], group.by = "RNA_snn_res.1", label = TRUE)
+    pdf(paste0(out_dir,sample,"_res_1.pdf"))
+    print(res_1[[sample]])
+    dev.off()
+    res_1.2[[sample]] <- DimPlot(scrna.list[[sample]], group.by = "RNA_snn_res.1.2", label = TRUE)
+    pdf(paste0(out_dir,sample, "_res_1.2.pdf"))
+    print(res_1.2[[sample]])
+    dev.off()
+    res_1.4[[sample]] <- DimPlot(scrna.list[[sample]], group.by = "RNA_snn_res.1.4", label = TRUE)
+    pdf(paste0(out_dir,sample,"_res_1.4.pdf"))
+    print(res_1.4[[sample]])
+    dev.off()
+    meta[[sample]] <- scrna.list[[sample]]@meta.data
+    Idents(scrna.list[[sample]]) <- meta[[sample]][resolution]
+    # save the list
+    saveRDS(scrna.list,paste0(out_dir,"scrna.list_postfilter.",projectName,".rds"))
+    so_postfilter <-    Merge_Seurat_List(scrna.list,
+                                              add.cell.ids = NULL,
+                                              merge.data = TRUE,
+                                              project = "sample_id")
+    saveRDS(so_postfilter, paste0(out_dir, "scrna_postfilter.seurat.", projectName, ".rds"))
+}
+```
+
+```{r }
+
+# Step 5: Identify conserved cell type markers
+# For performing differential expression after integration, we switch back to the original data
+# Identify conserved cell type markers
+#nk.markers <- FindConservedMarkers(scrna.list[[sample]], ident.1 = 0, grouping.var = "orig.ident")
+scrna.list <- SplitObject(so_postfilter, split.by = "sample_id")
+scrna.markers = list()
+top10 = list()
+top25 = list()
+top50 = list()
+topN  = list()
+for (sample in samples){
+scrna.markers[[sample]] <- FindAllMarkers(scrna.list[[sample]], only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25,verbose=FALSE,test.use = "MAST")
+names(scrna.markers[[sample]])[names(scrna.markers[[sample]]) == "gene"] <- "geneSymbol"
+write.table(scrna.markers[[sample]], paste0(out_dir,sample, "_FindAllMarkers.clusters.xls"), sep = "\t", row.names = F)
+# Step 6: Top 3 identified genes, feature plot, dotplot
+  }
+```
+
+
+#DoHeatmap(scrna.combined, features = topN$geneID, size = 2, draw.lines = T, angle = 45, hjust = 0.2) + theme(axis.text.y = element_text(size = 5)) + NoLegend() + scale_y_discrete(breaks=topN$geneID,
+#        labels=geneTable$geneSymbol[match(topN$geneID, geneTable$geneID)])
+#ggsave(paste0(outdir, "top25markers.heatmap.integrated.geneSymbol.pdf"), width = 8, height = 12)
+#  
+```
+
+```{r Customer Markers, Feature Plot, Dot Plot}
+
+
+
+```
+ ---  
+
+scRNA seq report well module v.`r {scrna_seq_sample_module_version}`, Brigham and Women's Bioinformatics and Genomics Hub  
+
+```{r scrna_cleanup_cluster_annotation_, include = FALSE}
+module_vars <- setdiff(ls(), orig_workspace)
+rm(list=module_vars)
+gc()
+```

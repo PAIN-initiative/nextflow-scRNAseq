@@ -1,0 +1,394 @@
+<!-- # Child Rmarkdown Document for 10X genomics cellranger-based scRNA sequencing outputs -->
+<!-- Parent document must have a variable "in_rna" containing metadata-injected H5 files by sample --> 
+<a id="rna_seq_sample_top"></a>
+
+```{r, include=FALSE} 
+orig_workspace <- ls()
+scrna_seq_sample_module_version <- "1.0.2" # 20211201
+stm("Starting scRNA Sample Module")
+```
+
+The following metrics summarize the sequencing and alignment by 10x Sample prior to  cell filtering.  
+
+### Contents 
+
+#### [Sample Summary](#sample_seq_summary)
+#### [Detailed Sample Summary](#sample_seq_summary)
+#### [Plots of Sample-Level Metrics](#seq_metrics_plots)  
+#### [Count Stats per Sample](#rna_sample_counts)  
+  - [Read Counts per Sample Plot](#rna_read_count)  
+  - [UMI Counts per Sample Plot](#rna_umi_count)  
+  - [Gene Counts per Sample Plot](#rna_gene_count)  
+  
+#### [Mitochondrial UMIs](#mito_umis_rna)
+  - [Fraction MT UMI by UMI Counts](#rna_fct_mito_by_umi_counts)  
+  - [Fraction MT UMI by Gene Counts](#rna_fct_mito_by_gene_counts)  
+    
+<details style="color: lightgray;">  
+  <summary>Expand Code</summary> 
+
+Check Dependencies  
+```{r scrna_seq_dependency_check, include = FALSE}
+assertthat::assert_that(exists("in_rna"))  
+all_h5 <- list.files(path = in_rna, 
+                               pattern = ".h5$", 
+                               full.names = TRUE, recursive = TRUE)
+assertthat::assert_that(length(all_h5) >0, 
+                        msg = sprintf("Did not detect any .h5 files in input RNA directory %s", in_rna))
+```   
+Reading in metadata from h5 files  
+```{r rna_metadata}
+stm("Reading and merging all rna meta data")
+rna_meta_list <- lapply(all_h5, H5MANIPULATOR::read_h5_cell_meta)
+# make sure column names are the same
+col_list <- lapply(rna_meta_list, colnames)
+all_cols_identical <- length(unique(col_list)) == 1
+if(!all_cols_identical){
+  all_columns <- unique(unlist(lapply(rna_meta_list, colnames)))
+  common_columns <- Reduce(union, lapply(rna_meta_list, colnames))
+  if(!all(all_columns %in% common_columns)){
+    stm(sprintf("Warning: rna h5 files do not contain the same meta data columns. Keeping only the common columns. Removing columns %s.", 
+        paste(setdiff(all_columns, common_columns), sep = ", ")))
+  }
+  rna_meta_list <- lapply(rna_meta_list, function(x){x[, common_columns]})
+}
+# merge metadata
+rna_meta <- do.call(rbind, rna_meta_list)
+
+# add metadata variables
+rna_meta$fct_mito_umi <- rna_meta$percent_mito/rna_meta$n_umis
+fct_mito_grp_cutoffs <- c(-Inf, 0.05, 0.10, 0.20, 0.30,Inf)
+fct_mito_grp_labels <- c("0-0.05","0.05-0.10","0.10-0.20","0.20-0.30",">0.30")
+rna_meta$fct_mito_group <- cut(rna_meta$fct_mito_umi, breaks =fct_mito_grp_cutoffs,
+                           labels = fct_mito_grp_labels)
+```  
+Read in Counts from H5 Files  
+```{r rna_counts}
+stm("Reading and merging all rna count matrices")
+rna_count_list <- lapply(all_h5, H5MANIPULATOR::read_h5_dgCMatrix, target = "matrix", 
+                         feature_names = "id")
+# make sure all matrices have same number of rows
+if(!length(unique(sapply(rna_count_list, nrow)))==1){
+  stop("RNA count matrixes have different numbers of rows")
+} 
+
+# make sure rows are in same order
+row_order <- rownames(rna_count_list[[1]])
+rna_count_list <- lapply(rna_count_list, function(x){x[row_order,]})
+# make sure columns are in same order as metadata
+order_check <- mapply(function(x, y){(all(x$barcodes==colnames(y)))}, rna_meta_list, rna_count_list)
+if(!all(order_check)){
+  # Reorder matrix columns to be consistent with metadata
+  rna_count_list <- mapply( function(x, y){x[,y$barcodes]}, rna_count_list, rna_meta_list)
+}
+# merge
+rna_counts <- do.call(cbind, rna_count_list)
+featDF <- read_h5_feature_meta(all_h5[1])
+```
+
+```{r scrna_definitions} 
+h5_sample_info_list <- lapply(all_h5, read_h5ad_sample_meta)
+h5_sample_info <- do.call(rbind, h5_sample_info_list)
+sample_col_names <- colnames(as.data.frame(h5_sample_info))
+vnames_rna <- c("estimated_number_of_cells", "fraction_reads_in_cells", 
+            "mean_reads_per_cell", "median_genes_per_cell", "median_umi_counts_per_cell", 
+            "number_of_reads", "q30_bases_in_barcode", "q30_bases_in_rna_read", 
+            "q30_bases_in_umi", "reads_mapped_antisense_to_gene", 
+            "reads_mapped_confidently_to_exonic_regions", "reads_mapped_confidently_to_genome", 
+            "reads_mapped_confidently_to_intergenic_regions","reads_mapped_confidently_to_intronic_regions", 
+            "reads_mapped_confidently_to_transcriptome", "reads_mapped_to_genome", 
+            "sequencing_saturation", "total_genes_detected", "valid_barcodes")
+if(any(vnames_rna %in% sample_col_names)){
+  vnames <- vnames_rna
+  vlabels <- c("Estimated Number of Cells", "Fraction Reads in Cells", 
+            "Mean Reads per Cell", "Median Genes per Cell", "Median UMI per Cell", 
+            "Number of Reads", "Q30 Bases in Barcode (%)", "Q30 Bases in RNA Read (%)", 
+            "Q30 Bases in UMI (%)", "Reads Mapped Antisense to Gene (%)", 
+            "Reads Mapped Confidently to Exonic Regions (%)", "Reads Mapped Confidently to Genome (%)", 
+            "Reads Mapped Confidently to Intergenic Regions (%)",
+            "Reads Mapped Confidently to Intronic Regions (%)", 
+            "Reads Mapped Confidently to Transcriptome (%)", "Reads Mapped to Genome (%)", 
+            "Sequencing Saturation (%)", "Total Genes Detected", "Valid Barcodes (%)")
+  n_vars <- length(vnames)
+  vartypes <- c(rep("Cells", 5), rep("Sequencing", 4), rep("Mapping", 7),"Sequencing","Cells","Sequencing")
+  vartypes <- factor(vartypes,  levels = c("Cells", "Sequencing", "Mapping"))
+  digitsRound <- c(0, 1, rep(0, 4), rep(1, 11), 0, 1)
+  rna_data_type <- "rna"
+}
+  df_vars <- data.frame(Category = vartypes,
+                        Variable_name = vlabels,
+                        Variable = vnames,
+                        Round = digitsRound)
+```
+
+</details>  
+<a  id="sample_seq_summary"></a> 
+
+### Sample Summary     
+
+```{r sample_summary_table1, results = "asis"}
+stm("Creating scrna Sample cellranger summary table")
+if(rna_data_type == "rna"){
+  sample_info <- h5_sample_info %>%
+  dplyr::group_by(sample_id) %>%
+  dplyr::summarize(total_cells = formatC(sum(estimated_number_of_cells), big.mark = ",", digits = 0, format = "f"),
+            total_reads = formatC(sum(number_of_reads), big.mark = ",", digits = 0, format = "f"), .groups = "drop")
+}
+names(sample_info) <- stringr::str_to_title(gsub("_", " ", names(sample_info)))
+sample_info %>%
+  gt::gt() %>%
+  gt::cols_align(align = "right", columns = 2:3)
+  
+rm(sample_info)
+
+### Detailed Sample Summary  
+```{r sample_summary_table, results = "asis"}  
+stm("Creating detailied scrna sample cellranger table")
+unique_samples <- sort(unique(h5_sample_info$sample_id))  
+n_samples <- length(unique_samples)
+sample_summary_table <- h5_sample_info %>% 
+  gather(key = Variable, value = Value, all_of(vnames)) %>%   # all variables long
+  full_join(df_vars, by = "Variable") %>%  
+  group_by(sample_id, Variable, Variable_name) %>% 
+  dplyr::summarize(Median = formatC(median(Value, na.rm=T), big.mark = ",", digits = unique(Round), format = "f"),
+            .groups = "drop") %>% 
+  arrange(Variable_name) %>% 
+  tidyr::pivot_wider(id_cols = c( "Variable", "Variable_name"), 
+                     names_from = sample_id, 
+                     values_from = c("Median"),
+                     names_glue = "{sample_id}__{.value}",
+                     names_sort = TRUE) %>%
+  mutate(Plot = sprintf("[Plot](#%s)", Variable)) %>% 
+  dplyr::select(Variable_name, contains(unique_samples), Plot) # reorder cols by pools first then stats, keep only the clean var name
+gt_table <- sample_summary_table %>% 
+  gt::gt() %>% 
+  gt::fmt_markdown(columns = "Plot") %>% # convert the plot column text to markdown to activate links. these links generated with plots below.
+  gt::cols_width(vars(Variable_name) ~ px(150),
+                 ends_with("Median") ~ px(100),
+                 vars(Plot) ~ px(60)) %>% 
+  gt::tab_options(table.font.size = 11, column_labels.font.size = 12) %>%
+  gt::tab_spanner_delim(delim = "__") %>% 
+  gt::cols_align(align = "right",
+                 columns = c(ends_with("Median"), ends_with("Range"))) %>% 
+  gt::cols_align(align = "center",
+                 columns = vars(Plot)) %>% 
+  gt::cols_label(Variable_name = "Variable")
+gt_table  
+rm(sample_summary_table)
+rm(gt_table)
+
+```
+<details>
+  <summary>Expand table of statistics per sample</summary> 
+```{r sample_info_table}
+qc_table(h5_sample_info)
+```
+</details>   
+[Return to Contents](#rna_seq_sample_top) 
+
+<a  id="seq_metrics_plots"></a> 
+
+### Plots of Sample-Level Metrics
+
+```{r sample_plots, results = "asis", fig.height = 3.5}
+stm("Generating sequencing and alignment QC plots")
+verpal <- hcl.colors(n = n_vars, palette = "viridis")
+# Plots
+for (i in seq_along(vnames)){
+  df <- data.table::copy(h5_sample_info)
+  spec <- vnames[i]
+  slabel <- vlabels[i]
+  df <- as.data.frame(df)
+  df$spec_col <- df[,spec]
+  med_val <- median(df$spec_col)
+  cv <- round(sd(df$spec_col)/mean(df$spec_col)*100, 2)
+  n <- sum(!is.na(df$spec_col))
+  
+  g <- ggplot(df, aes(sample_id, spec_col)) +
+    geom_bar(stat = "identity", fill = verpal[i]) + 
+    geom_hline(yintercept = med_val, linetype = "dashed", color = "red")+
+    scale_y_continuous(sec.axis = dup_axis(breaks = med_val, labels = med_val, name = ""))+
+    xlab("Sample") +
+    ylab(slabel) +
+    facet_wrap(~sample_id, ncol = n_samples, scales = "free_x", drop = TRUE) +
+    ggtitle(slabel, 
+            subtitle = sprintf("Median=%s    CV=%.1f%%    N=%s", med_val, cv, n)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+  
+  # Plot-specific hyperlink definition
+  cat(sprintf('\n<a id="%s"></a>', spec), labels = "", sep = "\n")
+  
+  # Output plot
+  suppressWarnings(print(g))
+  
+  # Link back to top of section
+  cat("  \n[Return to Contents](#rna_seq_sampletop)", labels = "", sep = "\n")
+  
+  rm(df, spec, slabel, med_val, cv, n, g)
+  
+}
+```
+
+<a id="rna_sample_counts"></a> 
+
+### Count Stats per Sample
+
+<a id= "rna_read_count"></a>  
+
+#### Read Counts by Sample
+```{r read_counts_sample, results="asis"}
+# Reads per hto cat
+stm("Generating read count violin plots")
+
+# Reads per hto plot
+g_read <- qc_violin_plot(rna_meta,
+                        category_x = "in_sample",
+                        name_x = "Sample",
+                        column_y = "n_reads",
+                        name_y = "N Reads per Cell",
+                        log_y = TRUE,
+                        fill = "dodgerblue") +
+  ggtitle("Reads per Sample")
+temp_figwidth = max(5, 0.5 + n_samples*0.4)
+temp_figheight = 4
+qcreporter::make_subchunk(g_read, subchunk_name = "sample_read_violin_subchunk", 
+              chunk_opt_list = list(fig.height = temp_figheight, fig.width = temp_figwidth, 
+                                    warning = FALSE), 
+              quiet_knit = TRUE)
+              
+rm(g_read)
+
+```  
+
+[Return to Contents](#rna_seq_sample_top) 
+
+<a id= "rna_umi_count"></a>  
+
+#### UMI Counts by Sample
+```{r umi_counts_well, results="asis"}
+# Reads per hto cat
+stm("Generating umi count violin plots")
+# UMI per hto plot
+g_umi <- qc_violin_plot(rna_meta,
+                        category_x = "in_sample",
+                        name_x = "Sample",
+                        column_y = "n_umis",
+                        name_y = "N UMIs per Cell",
+                        log_y = TRUE,
+                        fill = "purple") +
+  ggtitle("UMIs per Sample")
+temp_figwidth = max(5, 0.5 + n_samples*0.4)
+temp_figheight = 4
+qcreporter::make_subchunk(g_umi, subchunk_name = "well_umi_violin_subchunk", 
+              chunk_opt_list = list(fig.height = temp_figheight, fig.width = temp_figwidth, 
+                                    warning = FALSE), 
+              quiet_knit = TRUE)
+rm(g_umi)
+```  
+
+[Return to Contents](#rna_seq_sample_top) 
+
+<a id= "rna_gene_count"></a>  
+
+
+#### Gene Counts by Well
+```{r gene_counts_well, results="asis"}
+# Reads per hto cat
+stm("Generating gene count violin plots")
+# Reads per hto plot
+g_genes <- qc_violin_plot(rna_meta,
+                        category_x = "in_sample",
+                        name_x = "Sample",
+                        column_y = "n_genes",
+                        name_y = "N Genes per Cell",
+                        log_y = TRUE,
+                        fill = "orangered") +
+  ggtitle("Genes per Well")
+temp_figwidth = max(5, 0.5 + n_samples*0.4)
+temp_figheight = 4
+qcreporter::make_subchunk(g_genes, subchunk_name = "sample_gene_violin_subchunk", 
+              chunk_opt_list = list(fig.height = temp_figheight, fig.width = temp_figwidth, 
+                                    warning = FALSE), 
+              quiet_knit = TRUE)
+rm(g_genes)  
+``` 
+[Return to Contents](#rna_seq_sample_top) 
+
+<a id= "rna_fct_mito_by_umi_counts"></a>  
+
+#### Fraction Mito UMIs by UMI Counts  
+```{r rna_mito_umis_vs_total, width = 8, height = 6}
+stm("Generating mt umi vs umi count scatter plots")
+# Reads per hto plot
+g_mito_umi <- ggplot(rna_meta, aes(n_umis, fct_mito_umi)) +
+    geom_point(color = "purple", alpha = 0.2) +
+    xlab("UMI per Cell (log10 scale)") +
+    ylab("Fraction Mitochondrial UMI") +
+    scale_x_log10() +
+    ggtitle("Fraction Mitochondrial UMI vs UMI per Cell") 
+g_mito_umi
+```  
+<details>  
+  <summary> Expand Per-Well Plot </summary>  
+```{r rna_mito_umis_vs_umis_well, results="asis"}
+stm("Generating mt umi vs umi count scatter plots by sample")
+n_samples_plot <- length(unique(rna_meta$in_sample))
+ncols_plot <- 6
+nrows_plot <- ceiling(n_samples_plot/ncols_plot)
+# Reads per hto plot
+g_mito_umi_sample <- g_mito_umi +
+    facet_wrap(~in_sample, ncol = ncols_plot)
+temp_figwidth <- 2*min(n_samples_plot, ncols_plot)+0.3
+temp_figheight <- 2*nrows_plot + 0.3
+qcreporter::make_subchunk(g_mito_umi_sample, subchunk_name = "fraction_mito_umis_sample_subchunk", quiet_knit = T,
+              chunk_opt_list = list(fig.width = temp_figwidth, fig.height = temp_figheight, echo = FALSE))
+rm(g_mito_umi, g_mito_umi_well)
+```  
+
+</details>   
+
+[Return to Contents](#rna_seq_well_top) 
+
+<a id= "rna_fct_mito_by_gene_counts"></a>  
+
+#### Fraction Mito UMIs by Gene Counts  
+```{r rna_mito_umis_vs_genes, height = 6, width = 8}
+stm("Generating mt umi vs gene count scatter plots")
+# Reads per hto plot
+g_mito_gene <- ggplot(rna_meta, aes(n_genes, fct_mito_umi)) +
+    geom_point(color = "orangered", alpha = 0.2) +
+    xlab("Genes per Cell (log10 scale)") +
+    ylab("Fraction Mitochondrial UMI") +
+    scale_x_log10() +
+    ggtitle("Fraction Mitochondrial UMI vs UMI per Cell") 
+g_mito_gene
+```  
+
+<details>  
+  <summary> Expand Per-Well Plot </summary>  
+  
+```{r rna_mito_umis_vs_genes_well, results="asis"}
+stm("Generating mt umi vs gene count scatter plots by sample")
+n_samples_plot <- length(unique(rna_meta$in_sample))
+ncols_plot <- 6
+nrows_plot <- ceiling(n_samples_plot/ncols_plot)
+g_mito_gene_sample <- g_mito_gene +
+    facet_wrap(~in_sample, ncol = ncols_plot)
+temp_figwidth <- 2*min(n_samples_plot, ncols_plot)+0.3
+temp_figheight <- 2*nrows_plot + 0.3
+qcreporter::make_subchunk(g_mito_gene_sample, subchunk_name = "fraction_mito_genes_sample_subchunk", quiet_knit = T,
+              chunk_opt_list = list(fig.width = temp_figwidth, fig.height = temp_figheight, echo = FALSE))
+rm(g_mito_gene, g_mito_gene_sample)
+```  
+</details>  
+
+[Return to Contents](#rna_seq_sample_top) 
+---  
+
+scRNA seq report well module v.`r {scrna_seq_sample_module_version}`, Brigham and Women's Bioinformatics and Genomics Hub  
+
+```{r scrna_seq_well_cleanup, include = FALSE}
+module_vars <- setdiff(ls(), orig_workspace)
+rm(list=module_vars)
+gc()
+```

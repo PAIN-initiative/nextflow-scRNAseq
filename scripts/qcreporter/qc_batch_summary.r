@@ -86,7 +86,7 @@ if(is.null(args$experiment_id)) {
   stop("No parameters supplied.")
 }
 
-rmd_path <- file.path("nextflow-scRNAseq/scripts/qcreporter/inst/rmarkdown/ngs_sample_qc_report.rmd")
+rmd_path <- file.path("/nextflow-scRNAseq/scripts/qcreporter/inst/rmarkdown/ngs_sample_qc_report.rmd")
 
 rmarkdown::render(
   input = rmd_path,

@@ -86,13 +86,7 @@ if(is.null(args$experiment_id)) {
   stop("No parameters supplied.")
 }
 
-rmd_path <- file.path(args$cellrangers_dir,
-                      paste0(args$experiment_id,
-                             "_ngs_sample_qc_report.rmd"))
-
-file.copy(system.file("rmarkdown/ngs_sample_qc_report.rmd", package = "qcreporter"),
-          rmd_path,
-          overwrite = TRUE)
+rmd_path <- file.path("nextflow-scRNAseq/scripts/qcreporter/inst/rmarkdown/ngs_sample_qc_report.rmd")
 
 rmarkdown::render(
   input = rmd_path,

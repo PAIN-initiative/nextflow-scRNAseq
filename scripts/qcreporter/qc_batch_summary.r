@@ -86,7 +86,7 @@ if(is.null(args$experiment_id)) {
   stop("No parameters supplied.")
 }
 
-rmd_path <- file.path(args$out_dir,
+rmd_path <- file.path(args$in_dir,
                       paste0(args$experiment_id,
                              "_ngs_sample_qc_report.rmd"))
 

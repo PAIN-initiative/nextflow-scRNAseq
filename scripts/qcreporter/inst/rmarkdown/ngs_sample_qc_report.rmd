@@ -124,18 +124,6 @@ print(paste0("OUT Dir         : ", out_dir))
 
 Check input files  
 ```{r check_input_main}
-if(!dir.exists(in_dir)) {
-  stm(paste("ERROR: Cannot find IN results dir:", in_dir))
-  stop()
-}
-if(!file.exists(in_key)) {
-  stm(paste("ERROR: Cannot find IN sample key:", in_key))
-  stop()
-}
-if(!dir.exists(out_dir)) {
-  stm(paste("Creating output directory:", out_dir))
-  dir.create(out_dir)
-}
 
 out_prefix <- file.path(out_dir, paste0(experiment_id, "_"))
 

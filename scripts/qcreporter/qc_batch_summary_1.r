@@ -1,38 +1,7 @@
-quiet_library <- function(...) {
-  suppressPackageStartupMessages(library(...))
-}
-quiet_library(optparse)        # dependency of H5MANIPULATOR
-quiet_library(qcreporter)        # dependency of H5MANIPULATOR
-quiet_library(Matrix)        # dependency of H5MANIPULATOR
-quiet_library(rhdf5)         # dependency of H5MANIPULATOR
-quiet_library(H5MANIPULATOR)    
-quiet_library(ggplot2)
-quiet_library(stringr)       
-quiet_library(dplyr)         # data wrangling
-quiet_library(cowplot)       # arranging multiple plots
-quiet_library(gt)            # formatted table output
-quiet_library(plotly)        # interactive plots
-quiet_library(tidyr)         # data wrangling
-quiet_library(Seurat)        # batch umap creation
-quiet_library(future)        # multi-threading for batch umap creation
-quiet_library(future.apply)  # multi-threading for batch umap creation
-quiet_library(rio)
-quiet_library(purrr)
-quiet_library(egg)
-quiet_library(DT)
-quiet_library(SoupX)
-quiet_library(reticulate)
-quiet_library(glmpca)
-quiet_library(SeuratWrappers)
-quiet_library(viridis)
-quiet_library(qs)
-quiet_library(gridExtra)
-quiet_library(plyr)
-quiet_library(ggpubr)
-quiet_library(XML)
-quiet_library(RCurl)
-quiet_library(DoubletFinder)
-quiet_library(scuttle)
+#!/usr/bin/env Rscript
+
+library(optparse)
+
 option_list <- list(
   make_option(opt_str = c("-e","--experiment_id"),
               type = "character",
@@ -113,7 +82,61 @@ option_list <- list(
 opt_parser <- OptionParser(option_list = option_list)
 
 args <- parse_args(opt_parser)
+# Load Libraries
+quiet_library <- function(...) {
+  suppressPackageStartupMessages(library(...))
+}
+quiet_library(optparse)        # dependency of H5MANIPULATOR
+quiet_library(qcreporter)        # dependency of H5MANIPULATOR
+quiet_library(Matrix)        # dependency of H5MANIPULATOR
+quiet_library(rhdf5)         # dependency of H5MANIPULATOR
+quiet_library(H5MANIPULATOR)    
+quiet_library(ggplot2)
+quiet_library(stringr)       
+quiet_library(dplyr)         # data wrangling
+quiet_library(cowplot)       # arranging multiple plots
+quiet_library(gt)            # formatted table output
+quiet_library(plotly)        # interactive plots
+quiet_library(tidyr)         # data wrangling
+quiet_library(Seurat)        # batch umap creation
+quiet_library(future)        # multi-threading for batch umap creation
+quiet_library(future.apply)  # multi-threading for batch umap creation
+quiet_library(rio)
+quiet_library(purrr)
+quiet_library(egg)
+quiet_library(DT)
+quiet_library(SoupX)
+quiet_library(reticulate)
+quiet_library(glmpca)
+quiet_library(SeuratWrappers)
+quiet_library(viridis)
+quiet_library(qs)
+quiet_library(gridExtra)
+quiet_library(plyr)
+quiet_library(ggpubr)
+quiet_library(XML)
+quiet_library(RCurl)
+quiet_library(DoubletFinder)
+quiet_library(scuttle)
 
+
+# Arg Parse
+
+experiment_id   <- args$experiment_id
+in_method 		  <- args$in_method
+in_dir			    <- args$in_dir
+cellrangers_dir <- args$cellrangers_dir
+refdir 			    <- args$refdir
+in_key 			    <- args$in_key
+out_dir 		    <- args$out_dir
+out_html 		    <- args$out_html
+resolution 		  <- args$resolution
+percent_mito 	  <- args$percent_mito
+percent_ribo 	  <- args$percent_ribo
+filter_MALAT 	  <- args$filter_MALAT
+filter_MITO 	  <- args$filter_MITO
+species 		    <- args$species
+filter_RIBO 	  <- args$filter_RIBO
 # Load Samplesheet
 stm("Reading in Marker Genes")
 

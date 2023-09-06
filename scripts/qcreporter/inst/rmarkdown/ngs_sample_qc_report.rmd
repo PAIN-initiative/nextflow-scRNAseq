@@ -84,30 +84,23 @@ stm(paste(c("\t",paste(names(Sys.info()),Sys.info(),sep = ": ")), collapse = "\n
 Argument Parsing  
 ```{r parse_arguments}
 # give input directory rna-specific name 
-if(is.null(params$in_dir)) {
-  experiment_id <- "X070"
-  in_dir <- system.file("extdata/X070", package = "qcreporter")
-  in_key <- system.file("extdata/example_sample_key_X070.csv", package = "qcreporter")
-  in_method_string <- "scrna;scatac"
-  out_dir <- tempdir()
-} else {
-  experiment_id    <- params$experiment_id
-  cellrangers_dir  <- params$cellrangers_dir
-  outdir           <- params$out_dir
-  refdir           <- params$refdir
-  projectName      <- params$experiment_id  
-  in_method_string <- params$in_method
-  in_dir           <- params$in_dir  
-  in_key           <- params$in_key
-  resolution       <- params$resolution
-  out_dir          <- params$out_dir
-  percent_mito     <- params$percent_mito
-  percent_ribo     <- params$percent_ribo
-  filter_MALAT     <- params$filter_MALAT
-  filter_MITO      <- params$filter_MITO
-  filter_RIBO      <- params$filter_RIBO
-  species          <- params$species
-}
+experiment_id    <- params$experiment_id
+cellrangers_dir  <- params$cellrangers_dir
+outdir           <- params$out_dir
+refdir           <- params$refdir
+projectName      <- params$experiment_id  
+in_method_string <- params$in_method
+in_dir           <- params$in_dir  
+in_key           <- params$in_key
+resolution       <- params$resolution
+out_dir          <- params$out_dir
+percent_mito     <- params$percent_mito
+percent_ribo     <- params$percent_ribo
+filter_MALAT     <- params$filter_MALAT
+filter_MITO      <- params$filter_MITO
+filter_RIBO      <- params$filter_RIBO
+species          <- params$species
+
 
 stm(paste0("IN Experiment        : ", experiment_id))
 stm(paste0("IN Method       : ", in_method_string))

@@ -1,5 +1,38 @@
-library(optparse)
-
+quiet_library <- function(...) {
+  suppressPackageStartupMessages(library(...))
+}
+quiet_library(optparse)        # dependency of H5MANIPULATOR
+quiet_library(qcreporter)        # dependency of H5MANIPULATOR
+quiet_library(Matrix)        # dependency of H5MANIPULATOR
+quiet_library(rhdf5)         # dependency of H5MANIPULATOR
+quiet_library(H5MANIPULATOR)    
+quiet_library(ggplot2)
+quiet_library(stringr)       
+quiet_library(dplyr)         # data wrangling
+quiet_library(cowplot)       # arranging multiple plots
+quiet_library(gt)            # formatted table output
+quiet_library(plotly)        # interactive plots
+quiet_library(tidyr)         # data wrangling
+quiet_library(Seurat)        # batch umap creation
+quiet_library(future)        # multi-threading for batch umap creation
+quiet_library(future.apply)  # multi-threading for batch umap creation
+quiet_library(rio)
+quiet_library(purrr)
+quiet_library(egg)
+quiet_library(DT)
+quiet_library(SoupX)
+quiet_library(reticulate)
+quiet_library(glmpca)
+quiet_library(SeuratWrappers)
+quiet_library(viridis)
+quiet_library(qs)
+quiet_library(gridExtra)
+quiet_library(plyr)
+quiet_library(ggpubr)
+quiet_library(XML)
+quiet_library(RCurl)
+quiet_library(DoubletFinder)
+quiet_library(scuttle)
 option_list <- list(
   make_option(opt_str = c("-e","--experiment_id"),
               type = "character",

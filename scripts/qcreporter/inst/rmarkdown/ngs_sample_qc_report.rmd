@@ -144,6 +144,8 @@ if ("Final list" %in% colnames(ss)) {
 }
 
 df_key <- ss
+has_controls <- any(grepl("Control", df_key$Treatment))  # used to control evaluation of batch control-related code chunks
+
 ```
 
 

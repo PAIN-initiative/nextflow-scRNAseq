@@ -34,12 +34,16 @@ sudo apt-get install pandoc libhdf5-dev
 
 CRAN packages can be installed in R using:
 ```
-install.packages("devtools")
+install.packages("pacman",repo="https://cloud.r-project.org")
+install.packages("remotes",repo="https://cloud.r-project.org")
 install.packages('viridis',repo="https://cloud.r-project.org")
 install.packages('cowplot',repo="https://cloud.r-project.org")
 install.packages("scCustomize",repo="https://cloud.r-project.org")
+install.packages("gt",repo="https://cloud.r-project.org")
+install.packages("rio",repo="https://cloud.r-project.org")
+
 # Dot plot is depedent on GitHub Report (https://github.com/Simon-Leonard/FlexDotPlot)
-devtools::install_github("Simon-Leonard/FlexDotPlot")
+remotes::install_github("Simon-Leonard/FlexDotPlot")
 ```
 Some Packages are Dependent on BiocManager
 ```
@@ -55,10 +59,9 @@ To download dependencies that were developed internally by BWH Bioinformatics an
 Note: It is much easier to pull the docker image.
 
 ```
-Sys.setenv(GITHUB_PAT = "[your_PAT_here]")
-devtools::install_github("bwh-bioinformatics-hub/H5MANIPULATOR")
-devtools::install_github("bwh-bioinformatics-hub/qcreporter")
-
+remotes::install_github("bwh-bioinformatics-hub/H5MANIPULATOR")
+remotes::install_github("bwh-bioinformatics-hub/qcreporter")
+remotes::install_github('satijalab/seurat-wrappers')
 git clone https://github.com/bwh-bioinformatics-hub/rna_seq_pipeline_bwh.git
 ```
 Github pages of dependencies developed internally: \

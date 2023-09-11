@@ -36,6 +36,7 @@ CRAN packages can be installed in R using:
 ```
 install.packages("devtools")
 install.packages('viridis',repo="https://cloud.r-project.org")
+install.packages('cowplot',repo="https://cloud.r-project.org")
 install.packages("scCustomize",repo="https://cloud.r-project.org")
 # Dot plot is depedent on GitHub Report (https://github.com/Simon-Leonard/FlexDotPlot)
 devtools::install_github("Simon-Leonard/FlexDotPlot")

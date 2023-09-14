@@ -81,6 +81,7 @@ cd env/
 conda env create -f environment.yml
 conda activate scrna_nextflow_pipeline
 Rscript install_R_packages.R
+nextflow run scrna_seq.nf
 ```
 
 # 4. Containerization 

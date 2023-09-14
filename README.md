@@ -72,8 +72,7 @@ qcreporter: https://github.com/PAIN-initiative/qcreporter
 
 
 # 3. Conda 
-To create conda environment with dependencies installed \n
-Run the following commands:
+To create conda environment with dependencies installed:
 ```
 git clone [https://github.com/PAIN-initiative/nextflow_scRNAseq.git](https://github.com/PAIN-initiative/nextflow-scRNAseq.git)
 cd nextflow-scRNAseq

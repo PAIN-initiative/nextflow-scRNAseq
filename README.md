@@ -75,8 +75,8 @@ qcreporter: https://github.com/PAIN-initiative/qcreporter
 To create conda environment with dependencies install
 Run the following commands:
 ```
-git clone https://github.com/PAIN-initiative/nextflow_scRNAseq.git
-cd nextflow_scr
+git clone [https://github.com/PAIN-initiative/nextflow_scRNAseq.git](https://github.com/PAIN-initiative/nextflow-scRNAseq.git)
+cd nextflow-scRNAseq
 cd env/ 
 conda env create -f environment.yml
 conda activate scrna_nextflow_pipeline

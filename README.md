@@ -56,13 +56,13 @@ BiocManager::install("rhdf5")
 
 ```
 To download dependencies that were developed internally by BWH Bioinformatics and Genomics Hub 
-Note: It is much easier to pull the docker image.
+Note: Currently it is much easier to have conda handle the packages.
 
 ```
 remotes::install_github("bwh-bioinformatics-hub/H5MANIPULATOR")
 remotes::install_github("bwh-bioinformatics-hub/qcreporter")
 remotes::install_github('satijalab/seurat-wrappers')
-git clone https://github.com/bwh-bioinformatics-hub/rna_seq_pipeline_bwh.git
+git clone https://github.com/PAIN-initiative/rna_seq_pipeline_bwh.git
 ```
 Github pages of dependencies developed internally: \
 scRNA_seq Pipeline: https://github.com/PAIN-initiative/rna_seq_pipeline_bwh \
@@ -75,6 +75,8 @@ qcreporter: https://github.com/PAIN-initiative/qcreporter
 To create conda environment with dependencies install
 Run the following commands:
 ```
+git clone https://github.com/PAIN-initiative/nextflow_scRNAseq.git
+cd nextflow_scr
 cd env/ 
 conda env create -f environment.yml
 conda activate scrna_nextflow_pipeline

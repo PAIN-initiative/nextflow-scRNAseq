@@ -73,6 +73,7 @@ qcreporter: https://github.com/PAIN-initiative/qcreporter
 To install nextflow:
 ```
 git clone https://github.com/PAIN-initiative/nextflow-scRNAseq.git
+cd nextflow-scRNAseq
 cd nextflow
 tar -xvzf nextflow-22.10.6.tar.gz
 ```

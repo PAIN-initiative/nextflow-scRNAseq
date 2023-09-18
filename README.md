@@ -88,7 +88,7 @@ Rscript install_R_packages.R
 nextflow run scrna_seq.nf
 ```
 
-# 4. Containerization 
+# 5. Containerization 
 
 To deal with software dependencies and version controling a dockerfile has been created. \
 To download docker image run 
@@ -101,7 +101,7 @@ To mount data from local host to docker container run, example:
 docker run -t -i -v path/to/data/you/want/mounted:/container/dir acicalo4/snscrnaseq /bin/bash
 ```
 
-# 5. Example Usage: To Run After Pulling Docker Image
+# 6. Example Usage: To Run After Pulling Docker Image
 Setup:
 
 Nextflow will parse a .csv file for the sample_ids and the path to the directory the fastq files are in for your project. Please provide at the minimum a sample_id column to the .csv file. \

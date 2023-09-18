@@ -72,6 +72,7 @@ qcreporter: https://github.com/PAIN-initiative/qcreporter
 # 3. Nextflow installation 
 To install nextflow:
 ```
+git clone https://github.com/PAIN-initiative/nextflow-scRNAseq.git
 cd nextflow
 tar -xvzf nextflow-22.10.6.tar.gz
 ```
@@ -79,7 +80,6 @@ tar -xvzf nextflow-22.10.6.tar.gz
 # 4. Conda 
 To create conda environment with dependencies installed:
 ```
-git clone [https://github.com/PAIN-initiative/nextflow_scRNAseq.git](https://github.com/PAIN-initiative/nextflow-scRNAseq.git)
 cd nextflow-scRNAseq
 cd env/ 
 conda env create -f environment.yml

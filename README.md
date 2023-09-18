@@ -69,9 +69,14 @@ scRNA_seq Pipeline: https://github.com/PAIN-initiative/rna_seq_pipeline_bwh \
 H5MANIPULATOR: https://github.com/PAIN-initiative/H5MANIPULATOR \
 qcreporter: https://github.com/PAIN-initiative/qcreporter 
 
+# 3. Nextflow installation 
+To install nextflow:
+```
+cd nextflow
+tar -xvzf nextflow-22.10.6.tar.gz
+```
 
-
-# 3. Conda 
+# 4. Conda 
 To create conda environment with dependencies installed:
 ```
 git clone [https://github.com/PAIN-initiative/nextflow_scRNAseq.git](https://github.com/PAIN-initiative/nextflow-scRNAseq.git)

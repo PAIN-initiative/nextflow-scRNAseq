@@ -2,7 +2,7 @@
 Nextflow for single-cell RNAseq
 
 **************************
-
+### Note: Currently please run using Conda Environment 
 # 1. Introduction
 
 ### Overview:

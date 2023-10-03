@@ -30,12 +30,7 @@ wget -O cellranger-7.1.0.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/ce
 To download dependencies that were developed internally by BWH Bioinformatics and Genomics Hub 
 Note: Currently it is much easier to have conda handle the packages.
 
-```
-
-Github pages of dependencies developed internally: \
-scRNA_seq Pipeline: https://github.com/PAIN-initiative/rna_seq_pipeline_bwh \
-H5MANIPULATOR: https://github.com/PAIN-initiative/H5MANIPULATOR \
-qcreporter: https://github.com/PAIN-initiative/qcreporter 
+``
 
 # 3. Nextflow installation 
 To install nextflow:

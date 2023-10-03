@@ -31,11 +31,7 @@ To download dependencies that were developed internally by BWH Bioinformatics an
 Note: Currently it is much easier to have conda handle the packages.
 
 ```
-remotes::install_github("bwh-bioinformatics-hub/H5MANIPULATOR")
-remotes::install_github("bwh-bioinformatics-hub/qcreporter")
-remotes::install_github('satijalab/seurat-wrappers')
-git clone https://github.com/PAIN-initiative/rna_seq_pipeline_bwh.git
-```
+
 Github pages of dependencies developed internally: \
 scRNA_seq Pipeline: https://github.com/PAIN-initiative/rna_seq_pipeline_bwh \
 H5MANIPULATOR: https://github.com/PAIN-initiative/H5MANIPULATOR \

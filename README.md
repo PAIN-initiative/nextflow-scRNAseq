@@ -25,34 +25,6 @@ CellRanger: https://support.10xgenomics.com/single-cell-gene-expression/software
 ```
 You can Download CellRanger Software with this command: 
 wget -O cellranger-7.1.0.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-7.1.0.tar.gz?Expires=1677814041&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jZi4xMHhnZW5vbWljcy5jb20vcmVsZWFzZXMvY2VsbC1leHAvY2VsbHJhbmdlci03LjEuMC50YXIuZ3oiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE2Nzc4MTQwNDF9fX1dfQ__&Signature=CeQnToHDIRIiiKInKBCYNLXM3TnZOI346o1XXSjTiPCaAO-B4r1kVheGJF3ZkWWZG1ea1DJN9P4kQ9BHzrP--PHPYhatI5gIB8pxD74WoNAxa4iZxiQAYUKRq7I4z58L2jVwgTbddeOWfSSi2atH2zUVVOOAepnmGkH554a-zdBw2wT4CX1SABsFJ9uODCKkYn5wjg~KxOAK2ULT6FAWcf6IJWLM4OKm9Lz~ill576WFYIfl3OMng~tp-MPC-i641I9mb3qB4O1rsYSvI-IrvULbJ~aCUqNqW9pkdBZxfx5RHzv-SNpSau7WYLN613UMyKshMm07W-GFtwZ~XYYU5w__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
-```
-
-This repository requires that `pandoc` and `libhdf5-devel` libraries are installed as dependencies of the `H5MANIPULATOR` functions:
-```
-sudo apt-get install pandoc libhdf5-dev
-```
-
-CRAN packages can be installed in R using:
-```
-install.packages("pacman",repo="https://cloud.r-project.org")
-install.packages("remotes",repo="https://cloud.r-project.org")
-install.packages('viridis',repo="https://cloud.r-project.org")
-install.packages('cowplot',repo="https://cloud.r-project.org")
-install.packages("scCustomize",repo="https://cloud.r-project.org")
-install.packages("gt",repo="https://cloud.r-project.org")
-install.packages("rio",repo="https://cloud.r-project.org")
-
-# Dot plot is depedent on GitHub Report (https://github.com/Simon-Leonard/FlexDotPlot)
-remotes::install_github("Simon-Leonard/FlexDotPlot")
-```
-Some Packages are Dependent on BiocManager
-```
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-
-BiocManager::install("scry")
-BiocManager::install("ComplexHeatmap")
-BiocManager::install("rhdf5")
 
 ```
 To download dependencies that were developed internally by BWH Bioinformatics and Genomics Hub 

@@ -39,6 +39,11 @@ git clone https://github.com/PAIN-initiative/nextflow-scRNAseq.git
 cd nextflow-scRNAseq
 cd nextflow
 tar -xvzf nextflow-22.10.6.tar.gz
+cd nextflow-22.10.6/
+sudo apt install openjdk-17-jre # if on linux
+./nextflow
+
+Nextflow will be successfully installed
 ```
 
 # 4. Conda 

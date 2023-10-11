@@ -16,7 +16,7 @@ option_list <- list(
               default = NULL,
               help = "Input directory containing h5 and json files",
               metavar = "character"),
-  make_option(opt_str = c("-z","--cellrangers_dir"),
+  make_option(opt_str = c("-z","--cellbender_dir"),
               type = "character",
               default = NULL,
               help = "cellrangers out directory",
@@ -101,7 +101,7 @@ file.copy(system.file("rmarkdown/ngs_sample_qc_report.rmd", package = "qcreporte
 rmarkdown::render(
   input = rmd_path,
   params = list(  experiment_id    = args$experiment_id,
-                  cellrangers_dir  = args$cellrangers_dir,
+                  cellrangers_dir  = args$cellbender_dir,
                   outdir           = args$out_dir,
                   refdir           = args$refdir,
                   projectName      = args$experiment_id,

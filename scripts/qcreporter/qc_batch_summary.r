@@ -101,7 +101,7 @@ file.copy(system.file("rmarkdown/ngs_sample_qc_report.rmd", package = "qcreporte
 rmarkdown::render(
   input = rmd_path,
   params = list(  experiment_id    = args$experiment_id,
-                  cellrangers_dir  = args$cellbender_dir,
+                  cellbender_dir  = args$cellbender_dir,
                   outdir           = args$out_dir,
                   refdir           = args$refdir,
                   projectName      = args$experiment_id,

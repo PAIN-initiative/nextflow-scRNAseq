@@ -56,6 +56,8 @@ conda activate scrna_nextflow_pipeline
 Rscript install_R_packages.R
 pip install cellbender
 cd ..
+R # to activate R
+install.packages('ggpubr')
 nextflow run scrna_seq.nf
 ```
 

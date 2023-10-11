@@ -54,6 +54,7 @@ cd env/
 conda env create -f environment.yml
 conda activate scrna_nextflow_pipeline
 Rscript install_R_packages.R
+pip install cellbender
 cd ..
 nextflow run scrna_seq.nf
 ```

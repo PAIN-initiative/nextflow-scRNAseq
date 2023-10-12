@@ -24,7 +24,8 @@ This repository uses CellRanger Counts to generate the CellRangers outs director
 CellRanger: https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/latest
 ```
 You can Download CellRanger Software with this command: 
-wget -O cellranger-7.1.0.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-7.1.0.tar.gz?Expires=1677814041&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jZi4xMHhnZW5vbWljcy5jb20vcmVsZWFzZXMvY2VsbC1leHAvY2VsbHJhbmdlci03LjEuMC50YXIuZ3oiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE2Nzc4MTQwNDF9fX1dfQ__&Signature=CeQnToHDIRIiiKInKBCYNLXM3TnZOI346o1XXSjTiPCaAO-B4r1kVheGJF3ZkWWZG1ea1DJN9P4kQ9BHzrP--PHPYhatI5gIB8pxD74WoNAxa4iZxiQAYUKRq7I4z58L2jVwgTbddeOWfSSi2atH2zUVVOOAepnmGkH554a-zdBw2wT4CX1SABsFJ9uODCKkYn5wjg~KxOAK2ULT6FAWcf6IJWLM4OKm9Lz~ill576WFYIfl3OMng~tp-MPC-i641I9mb3qB4O1rsYSvI-IrvULbJ~aCUqNqW9pkdBZxfx5RHzv-SNpSau7WYLN613UMyKshMm07W-GFtwZ~XYYU5w__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
+wget -O cellranger-7.2.0.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-7.2.0.tar.gz?Expires=1697174417&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=U496cFRNxHuNHHpEKwFQgWNq8dUjTU~Vw3bLC35tlX9rLXeYNb1sCwMkP~GYXbsMFpt8MmbIYaFkpzGZoc1UuFNcH6-wL4wOpq-2EX6xkpo3wA3DSUoOf1vQzIvGXtRnLQCCKrQcei10~jO~WCS7xrmigrfP8sFTl0r7~AKzsNiMmPaiQflW~IyvocUm-r4lGeEim0twODUypxSneiT7ddhcDmrskb5v~NbNv9NTODMbfzgjAwVknPbVPgxPNhX9i3q-uf66IbNx7jQMVGRxkWjW2iG-6OglKO4M61RgNNL2UOEKdxUb18k5l7S0-J7gAOImUtp0xrZt1IiuX0HKTA__"
+
 
 ```
 To download dependencies that were developed internally by BWH Bioinformatics and Genomics Hub 

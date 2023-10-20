@@ -59,7 +59,7 @@ pip install cellbender
 cd ..
 R # to activate R
 install.packages('ggpubr')
-nextflow run scrna_seq.nf
+nextflow/nextflow-22.10.6/nextflow run scrna_seq.nf
 ```
 
 # 5. Containerization 

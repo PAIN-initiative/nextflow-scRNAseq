@@ -19,4 +19,4 @@ remotes::install_github('bwh-bioinformatics-hub/H5MANIPULATOR')
 remotes::install_github('satijalab/seurat-wrappers')
 remotes::install_github('bwh-bioinformatics-hub/qcreporter')
 remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
-
+remotes::install_github("immunogenomics/harmony", build_vignettes=TRUE)

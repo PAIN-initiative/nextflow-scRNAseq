@@ -59,6 +59,10 @@ pip install cellbender
 cd ..
 R # to activate R
 install.packages('ggpubr')
+# Leiden Algorithm Requirements
+pip install leidenalg
+pip install numpy
+pip install pandas
 nextflow/nextflow-22.10.6/nextflow run scrna_seq.nf
 ```
 

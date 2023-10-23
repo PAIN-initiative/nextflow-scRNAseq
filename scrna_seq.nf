@@ -18,20 +18,19 @@ Channel
     .map { row ->  row.sample_id }
     .set { sample_id_ch }
 
-(sample,sample_id) = sample_id_ch.into(2)
+(sample) = sample_id_ch.into(1)
 
 
 println """\
          RNA Seq - N F   P I P E L I N E
          ===================================
          Experiment                : ${params.experiment_id}
-         Samplesheet        	     : ${params.in_key}
-         CellRangersOuts Directory : ${params.cellrangers_outdir}
+         Samplesheet        	   : ${params.in_key}
+         CellBender Directory : ${params.cellbender_dir}
          QC Report input directory : ${params.qc_in_dir}
          QC Report Output directory: ${params.qc_output}
          """
          .stripIndent()
-
 
 process QC_Summary {
 
@@ -62,11 +61,7 @@ process QC_Summary {
 
 process QC_Report {
 
-      publishDir (
-        path: "${params.outdir}",
-        mode: 'copy',
-        overwrite: 'true',
-  )		// output dir
+    publishDir params.qc_output 			// output dir
 	
     input:
     
@@ -76,18 +71,21 @@ process QC_Report {
     script:
     """
     Rscript ${baseDir}/scripts/qcreporter/qc_batch_summary.r \
-    	-e  ${params.experiment_id} -m "scrna" -i  ${params.qc_in_dir} \
+    	-e  ${params.experiment_id} \
+    	-m  "snrna" \
+    	-i  ${params.qc_in_dir} \
     	-z  ${params.cellbender_dir} \
     	-f  ${params.refdir} \
     	-k  ${params.in_key}   \
-    	-d  ${params.outdir} \
-    	-o  ${params.outdir}/${params.experiment_id}_rnaseq_sample_report.html \
-	    -l  "Drosophila Melanogaster" \
+    	-d  ${params.qc_output} \
+    	-o  ${params.qc_output}/${params.experiment_id}_rnaseq_sample_report.html \
+	    -l  "Homo Sapiens" \
       -a  ${params.percent_ribo} \
       -j  ${params.resolution} \
       -b  ${params.filter_MALAT} \
       -c  ${params.percent_mito} \
       -u  ${params.filter_MITO} \
-      -q  ${params.filter_RIBO}
+      -q  ${params.filter_RIBO} \
+      -s  4
   """
 }

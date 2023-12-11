@@ -9,7 +9,7 @@ BiocManager::install("MAST")
 
 install.packages('ggpubr',repos='http://cran.us.r-project.org')
 install.packages('spam',repos='http://cran.us.r-project.org')
-
+install.packages("harmony",repos='http://cran.us.r-project.org')
 remotes::install_github("Simon-Leonard/FlexDotPlot")
 install.packages('devtools',repos='http://cran.us.r-project.org')
 install.packages('scCustomize',repos='http://cran.us.r-project.org')

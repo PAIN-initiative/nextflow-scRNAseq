@@ -3,7 +3,7 @@
 #if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
 
 # Then, install BiocManager (for installing bioconductor packages) if it isn’t already installed:
-install.packages(c('BiocManager', 'devtools','FactoMineR', 'ggforce','systemfonts', 'assertthat', 'cowplot', 'data.table', 'dplyr', 'ids', 'ggplot2', 'jsonlite', 'Matrix', 'optparse', 'GetoptLong', 'purrr','R.utils','rmarkdown','stringr','gt','plotly','tidyr','Seurat','future','future.apply','rio','purrr','scCustomize','egg','DT','SoupX','reticulate','glmpca','remotes','viridis','gridExtra','plyr','circlize','naniar','XML','RCurl'),repos='http://cran.us.r-project.org')
+install.packages(c('BiocManager', 'devtools','FactoMineR', 'ggforce','systemfonts', 'assertthat', 'cowplot', 'data.table', 'dplyr', 'ids', 'ggplot2', 'jsonlite', 'Matrix', 'optparse', 'GetoptLong', 'purrr','R.utils','rmarkdown','stringr','gt','plotly','tidyr','future','future.apply','rio','purrr','scCustomize','egg','DT','SoupX','reticulate','glmpca','remotes','viridis','gridExtra','plyr','circlize','naniar','XML','RCurl'),repos='http://cran.us.r-project.org')
 BiocManager::install(c('rhdf5', 'SingleCellExperiment', 'SummarizedExperiment','ComplexHeatmap','EnhancedVolcano','scuttle'))
 BiocManager::install("MAST")
 

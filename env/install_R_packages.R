@@ -11,7 +11,7 @@ install.packages('spam',repos='http://cran.us.r-project.org')
 install.packages("harmony",repos='http://cran.us.r-project.org')
 remotes::install_github("Simon-Leonard/FlexDotPlot")
 install.packages('devtools',repos='http://cran.us.r-project.org')
-install.packages('scCustomize',repos='http://cran.us.r-project.org')
+remotes::install_github(repo = "samuel-marsh/scCustomize", ref = "release/2.0.0")
 install.packages("hdf5r",repos='http://cran.us.r-project.org')
 
 remotes::install_github('bwh-bioinformatics-hub/H5MANIPULATOR')
